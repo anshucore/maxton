@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Diary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Kalam:wght@400;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#241014;
+    --bg-deep-2:#170a0d;
+    --paper:#fbf1e2;
+    --paper-edge:#f2e0c4;
+    --paper-shadow:rgba(20,6,10,0.55);
+    --page-line:rgba(93,64,41,0.10);
+    --ink:#3f2d1f;
+    --ink-soft:#7c6650;
+    --margin:#d9718f;
+    --rose:#e8a3b4;
+    --rose-dark:#c96e88;
+    --tape:rgba(232,163,180,0.55);
+    --gold:#c8a15a;
+    --danger:#b5573f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse at 50% -10%, #3a1720 0%, transparent 55%),
+      radial-gradient(ellipse at 100% 100%, #2c1116 0%, transparent 50%),
+      linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-deep-2) 100%);
+    color:var(--ink);
+    font-family:'Work Sans', sans-serif;
+    padding-bottom:90px;
+  }
+  .grain{
+    position:fixed; inset:0; pointer-events:none; opacity:0.04; z-index:0; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  a.back-link{
+    position:relative; z-index:2; display:inline-flex; align-items:center; gap:6px;
+    margin:28px 0 0 28px; color:rgba(255,235,240,0.6); text-decoration:none;
+    font-size:13px; letter-spacing:0.03em; transition:color 0.2s ease;
+  }
+  a.back-link:hover{ color:#ffb6c9; }
+
+  header{
+    position:relative; z-index:1;
+    max-width:640px; margin:0 auto; padding:36px 24px 20px;
+    text-align:center;
+  }
+  header .eyebrow{
+    font-size:11px; letter-spacing:0.24em; text-transform:uppercase;
+    color:var(--rose); margin:0 0 10px;
+  }
+  header h1{
+    font-family:'Fraunces', serif; font-weight:600; font-style:italic;
+    font-size:clamp(34px,7vw,52px); margin:0; color:#fdf3e9;
+    letter-spacing:-0.01em;
+  }
+  header p.sub{
+    font-family:'Fraunces', serif; font-style:italic; font-weight:400;
+    color:rgba(255,240,244,0.55); font-size:16px; margin:12px auto 0; max-width:380px;
+  }
+  .count{ font-size:12px; color:rgba(255,240,244,0.4); margin-top:16px; }
+
+  main{ max-width:640px; margin:0 auto; padding:14px 20px; position:relative; z-index:1; }
+
+  /* ---------- Notebook page (shared by composer + entries) ---------- */
+  .page{
+    position:relative;
+    background:var(--paper);
+    background-image:repeating-linear-gradient(
+      to bottom, transparent 0px, transparent 31px, var(--page-line) 32px
+    );
+    background-position:0 4px;
+    border-radius:3px;
+    box-shadow:0 18px 40px var(--paper-shadow), 0 1px 0 rgba(255,255,255,0.5) inset;
+    padding:28px 26px 22px 56px;
+    margin-bottom:30px;
+  }
+  .page::before{
+    content:""; position:absolute; left:42px; top:0; bottom:0; width:1.5px;
+    background:var(--margin); opacity:0.5;
+  }
+  .page::after{
+    content:""; position:absolute; left:16px; top:18px; bottom:18px; width:6px;
+    background-image:radial-gradient(circle, var(--ink-soft) 1.6px, transparent 1.8px);
+    background-size:6px 24px; background-repeat:repeat-y; opacity:0.3;
+  }
+  .page:nth-child(3n+1){ transform:rotate(-0.5deg); }
+  .page:nth-child(3n+2){ transform:rotate(0.4deg); }
+  .page:hover{ transform:rotate(0deg); transition:transform 0.2s ease; }
+
+  /* ---------- Composer ---------- */
+  #composer .page-head{
+    display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;
+  }
+  #composer .page-title{
+    font-family:'Fraunces', serif; font-style:italic; font-weight:500; font-size:17px; color:var(--ink);
+  }
+  .mood-row{ display:flex; gap:8px; margin:6px 0 12px; flex-wrap:wrap; }
+  .mood-btn{
+    border:1.5px solid rgba(63,45,31,0.15); background:rgba(255,255,255,0.5);
+    border-radius:999px; width:36px; height:36px; font-size:17px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:all 0.15s ease;
+  }
+  .mood-btn:hover{ border-color:var(--rose); }
+  .mood-btn.active{ border-color:var(--rose-dark); background:rgba(232,163,180,0.25); }
+
+  #entry-text{
+    width:100%; border:none; background:transparent; resize:none; outline:none;
+    font-family:'Kalam', cursive; font-size:19px; line-height:32px; color:var(--ink);
+    min-height:96px; padding:0;
+  }
+  #entry-text::placeholder{ color:#b3a18a; }
+
+  .attach-row{ display:flex; align-items:center; gap:12px; margin-top:8px; flex-wrap:wrap; }
+  .attach-btn{
+    border:1px dashed rgba(63,45,31,0.3); background:transparent; color:var(--ink-soft);
+    border-radius:999px; padding:7px 14px; font-size:12.5px; cursor:pointer;
+    font-family:'Work Sans', sans-serif; transition:all 0.15s ease;
+  }
+  .attach-btn:hover{ border-color:var(--rose-dark); color:var(--rose-dark); }
+  .attach-preview{ display:flex; align-items:center; gap:8px; }
+  .attach-preview img{ width:44px; height:44px; object-fit:cover; border-radius:6px; box-shadow:0 3px 8px rgba(0,0,0,0.25); }
+  .attach-preview button{
+    border:none; background:none; color:var(--danger); cursor:pointer; font-size:12px;
+    font-family:'Work Sans', sans-serif;
+  }
+
+  .composer-footer{ display:flex; justify-content:flex-end; align-items:center; gap:12px; margin-top:16px; }
+  .composer-hint{ font-size:11.5px; color:var(--ink-soft); margin-right:auto; }
+  .save-btn{
+    border:none; border-radius:999px; padding:10px 20px; cursor:pointer;
+    background:linear-gradient(135deg, var(--rose), var(--rose-dark)); color:#fff;
+    font-family:'Work Sans', sans-serif; font-size:13.5px; font-weight:600;
+    box-shadow:0 8px 18px rgba(201,110,136,0.35); transition:transform 0.15s ease;
+  }
+  .save-btn:hover{ transform:translateY(-1px); }
+  .save-btn:disabled{ opacity:0.5; cursor:default; transform:none; }
+
+  #file-input{ display:none; }
+
+  /* ---------- Entry pages ---------- */
+  .entry-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
+  .entry-date{ font-size:11.5px; color:var(--ink-soft); letter-spacing:0.03em; }
+  .entry-mood{ font-size:18px; }
+
+  .entry-body.blurred{ filter:blur(9px) saturate(1.1); user-select:none; }
+
+  .entry-photo{ max-width:230px; margin:6px auto 14px; position:relative; }
+  .entry-photo img{
+    width:100%; display:block; border:6px solid #fff; box-shadow:0 10px 24px rgba(0,0,0,0.3);
+    transform:rotate(-1.6deg); cursor:zoom-in;
+  }
+  .entry-photo .tape{
+    position:absolute; top:-10px; left:50%; transform:translateX(-50%) rotate(-3deg);
+    width:64px; height:20px; background:var(--tape); opacity:0.85;
+  }
+
+  .entry-text{
+    font-family:'Kalam', cursive; font-size:19px; line-height:32px; color:var(--ink);
+    white-space:pre-wrap; word-break:break-word; min-height:32px;
+  }
+  .entry-text::placeholder{ color:#b3a18a; }
+  textarea.entry-text{ width:100%; border:none; background:transparent; resize:none; outline:none; padding:0; }
+
+  .entry-meta{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; }
+  .entry-meta .left{ display:flex; gap:14px; }
+  .entry-meta button{
+    border:none; background:none; cursor:pointer; color:#b3a18a; font-size:11.5px;
+    letter-spacing:0.03em; padding:2px 4px; font-family:'Work Sans', sans-serif;
+  }
+  .entry-meta button:hover{ color:var(--rose-dark); }
+  .entry-meta .del:hover{ color:var(--danger); }
+
+  /* ---------- Lock overlay ---------- */
+  .lock-overlay{
+    position:absolute; inset:14px 14px 14px 54px; z-index:3; border-radius:4px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:8px; padding:16px; text-align:center; background:rgba(36,16,20,0.55); color:#fff;
+    backdrop-filter:blur(2px);
+  }
+  .lock-overlay .lock-icon{ font-size:24px; }
+  .lock-overlay .lock-label{ font-size:11.5px; letter-spacing:0.05em; text-transform:uppercase; opacity:0.9; }
+  .lock-overlay form{ display:flex; gap:6px; margin-top:2px; }
+  .lock-overlay input[type="password"]{
+    width:92px; padding:6px 8px; border:none; border-radius:3px;
+    font-family:'Work Sans', sans-serif; font-size:14px; text-align:center; letter-spacing:0.12em;
+  }
+  .lock-overlay button{
+    border:none; border-radius:3px; padding:6px 10px; cursor:pointer;
+    background:var(--rose); color:#2a1116; font-size:12.5px; font-family:'Work Sans', sans-serif; font-weight:600;
+  }
+  .lock-overlay button:hover{ opacity:0.88; }
+
+  /* ---------- Modals ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; z-index:30; background:rgba(20,6,10,0.6);
+    display:none; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-backdrop.show{ display:flex; }
+  .modal-box{
+    background:var(--paper); color:var(--ink); padding:24px 22px; border-radius:6px;
+    max-width:320px; width:100%; box-shadow:0 14px 30px rgba(0,0,0,0.4);
+  }
+  .modal-box h3{ font-family:'Fraunces', serif; font-weight:600; margin:0 0 8px; font-size:19px; }
+  .modal-box p{ font-size:13px; color:var(--ink-soft); margin:0 0 14px; line-height:1.4; }
+  .modal-box input[type="password"]{
+    width:100%; padding:9px 10px; border:1px solid rgba(0,0,0,0.15); border-radius:5px;
+    font-family:'Work Sans', sans-serif; font-size:15px; letter-spacing:0.08em; margin-bottom:14px;
+  }
+  .modal-actions{ display:flex; gap:8px; justify-content:flex-end; }
+  .modal-actions button{
+    border:none; border-radius:999px; padding:8px 16px; cursor:pointer;
+    font-family:'Work Sans', sans-serif; font-size:13px; font-weight:600;
+  }
+  .modal-actions .btn-skip{ background:transparent; color:var(--ink-soft); }
+  .modal-actions .btn-primary{ background:var(--rose-dark); color:#fff; }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--paper); color:var(--ink); padding:12px 20px; border-radius:6px;
+    font-size:13.5px; box-shadow:0 8px 20px rgba(0,0,0,0.35);
+    opacity:0; pointer-events:none; transition:all 0.25s ease; z-index:20;
+    max-width:80vw; text-align:center;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .loading, .empty{
+    text-align:center; padding:60px 20px; color:rgba(255,240,244,0.5);
+    font-family:'Fraunces', serif; font-style:italic; font-size:16px;
+  }
+
+  /* ---------- Lightbox (single photo) ---------- */
+  .lightbox{
+    position:fixed; inset:0; z-index:40; background:rgba(10,3,5,0.94);
+    display:none; align-items:center; justify-content:center; padding:20px;
+  }
+  .lightbox.show{ display:flex; }
+  .lightbox img{
+    max-width:92vw; max-height:88vh; width:auto; height:auto;
+    box-shadow:0 20px 50px rgba(0,0,0,0.6); border-radius:4px;
+  }
+  .lightbox-close{
+    position:fixed; top:20px; right:24px; background:none; border:none;
+    color:#f4e4ea; font-size:30px; line-height:1; cursor:pointer; padding:4px 8px;
+  }
+  .lightbox-close:hover{ color:var(--rose); }
+
+  @media (max-width:480px){
+    header{ padding:26px 18px 12px; }
+    main{ padding:10px 12px; }
+    .page{ padding:22px 18px 18px 46px; }
+    .page::before{ left:34px; }
+    .page::after{ left:12px; }
+    .entry-text, #entry-text{ font-size:18px; }
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<a class="back-link" href="index.html">&larr; our story</a>
+
+<header>
+  <p class="eyebrow">private · just for us</p>
+  <h1>the diary</h1>
+  <p class="sub">the pages only we read.</p>
+  <p class="count" id="count"></p>
+</header>
+
+<main>
+  <div class="page" id="composer">
+    <div class="page-head">
+      <span class="page-title">a new page</span>
+    </div>
+    <div class="mood-row" id="mood-row">
+      <button type="button" class="mood-btn" data-mood="💗">💗</button>
+      <button type="button" class="mood-btn" data-mood="🥹">🥹</button>
+      <button type="button" class="mood-btn" data-mood="😌">😌</button>
+      <button type="button" class="mood-btn" data-mood="🌙">🌙</button>
+      <button type="button" class="mood-btn" data-mood="✨">✨</button>
+      <button type="button" class="mood-btn" data-mood="😢">😢</button>
+    </div>
+    <textarea id="entry-text" placeholder="dear diary…" rows="4"></textarea>
+    <div class="attach-row">
+      <button type="button" class="attach-btn" id="attach-btn">📎 attach a photo</button>
+      <div class="attach-preview" id="attach-preview" style="display:none;">
+        <img id="attach-preview-img" src="" alt="">
+        <button type="button" id="attach-remove">remove</button>
+      </div>
+    </div>
+    <div class="composer-footer">
+      <span class="composer-hint" id="composer-hint"></span>
+      <button type="button" class="save-btn" id="save-btn">Seal this page &rarr;</button>
+    </div>
+  </div>
+
+  <div id="loading" class="loading">Turning the pages…</div>
+  <div id="entries"></div>
+  <div id="empty" class="empty" style="display:none;">No pages yet. Write the first one above.</div>
+</main>
+
+<input type="file" id="file-input" accept="image/*">
+<div class="toast" id="toast"></div>
+
+<div class="modal-backdrop" id="pin-modal">
+  <div class="modal-box">
+    <h3 id="pin-modal-title">Lock this page?</h3>
+    <p id="pin-modal-desc">Set a PIN and it'll stay blurred until someone enters it.</p>
+    <form id="pin-modal-form">
+      <input type="password" id="pin-modal-input" inputmode="numeric" placeholder="PIN (4+ digits)" autocomplete="off">
+      <div class="modal-actions">
+        <button type="button" class="btn-skip" id="pin-modal-skip">Skip</button>
+        <button type="submit" class="btn-primary" id="pin-modal-ok">Lock it</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="confirm-modal">
+  <div class="modal-box">
+    <h3 id="confirm-modal-title">Tear out this page?</h3>
+    <p id="confirm-modal-desc">This removes it for everyone. This can't be undone.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn-skip" id="confirm-modal-cancel">Cancel</button>
+      <button type="button" class="btn-primary" id="confirm-modal-ok" style="background:var(--danger);">Tear it out</button>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button type="button" class="lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<!--
+  ============================================================
+  SUPABASE SETUP (run once in this project's SQL editor).
+  This diary uses its OWN table and its OWN storage bucket,
+  completely separate from "photos" / "wall-photos" used by
+  the wall page, so nothing ever gets mixed together.
+
+  create table diary_entries (
+    id text primary key,
+    text text default '',
+    mood text,
+    img_url text,
+    img_path text,
+    pin_hash text,
+    created_at timestamptz default now()
+  );
+  alter table diary_entries enable row level security;
+  create policy "public read"   on diary_entries for select using (true);
+  create policy "public insert" on diary_entries for insert with check (true);
+  create policy "public update" on diary_entries for update using (true);
+  create policy "public delete" on diary_entries for delete using (true);
+
+  Then: Storage -> New bucket -> name it "diary-photos" -> make it Public.
+  ============================================================
+-->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+
+  // ============================================================
+  // Same Supabase project as the wall, but a dedicated table and
+  // bucket so diary pages and wall photos never mix.
+  // ============================================================
+  const SUPABASE_URL = 'https://qpeoldazjmctxaefdwni.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_dm8NgOu_Wt1f7ussG76qkw_ODaRW-1h';
+  const BUCKET = 'diary-photos';   // dedicated storage bucket
+  const TABLE = 'diary_entries';   // dedicated database table
+  // ============================================================
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const entriesEl = document.getElementById('entries');
+  const loadingEl = document.getElementById('loading');
+  const emptyEl = document.getElementById('empty');
+  const countEl = document.getElementById('count');
+  const toastEl = document.getElementById('toast');
+
+  const entryText = document.getElementById('entry-text');
+  const moodRow = document.getElementById('mood-row');
+  const attachBtn = document.getElementById('attach-btn');
+  const fileInput = document.getElementById('file-input');
+  const attachPreview = document.getElementById('attach-preview');
+  const attachPreviewImg = document.getElementById('attach-preview-img');
+  const attachRemove = document.getElementById('attach-remove');
+  const saveBtn = document.getElementById('save-btn');
+  const composerHint = document.getElementById('composer-hint');
+
+  let entries = [];
+  let selectedMood = null;
+  let selectedFile = null;
+  const captionTimers = {};
+  const unlockedIds = new Set(); // pages this browser tab has unlocked this session
+
+  // ---- Helpers ----
+  async function sha256Hex(text){
+    const buf = new TextEncoder().encode(text);
+    const digest = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=> toastEl.classList.remove('show'), 2600);
+  }
+
+  function fmtDate(iso){
+    try{
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }) +
+        ' · ' + d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+    }catch(e){ return ''; }
+  }
+
+  function updateCount(){
+    countEl.textContent = entries.length === 0 ? '' :
+      entries.length + (entries.length === 1 ? ' page written' : ' pages written');
+  }
+
+  function compressImage(file){
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const maxW = 900;
+          const scale = Math.min(1, maxW / img.width);
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.8);
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ---- PIN modal ----
+  const pinModal = document.getElementById('pin-modal');
+  const pinModalTitle = document.getElementById('pin-modal-title');
+  const pinModalDesc = document.getElementById('pin-modal-desc');
+  const pinModalForm = document.getElementById('pin-modal-form');
+  const pinModalInput = document.getElementById('pin-modal-input');
+  const pinModalSkip = document.getElementById('pin-modal-skip');
+  const pinModalOk = document.getElementById('pin-modal-ok');
+
+  function askForPin({ title, desc, okLabel, mode }){
+    return new Promise(resolve => {
+      pinModalTitle.textContent = title;
+      pinModalDesc.textContent = desc;
+      pinModalOk.textContent = okLabel;
+      pinModalSkip.style.display = mode === 'set' ? 'inline-block' : 'none';
+      pinModalInput.value = '';
+      pinModal.classList.add('show');
+      setTimeout(()=> pinModalInput.focus(), 30);
+      function cleanup(){
+        pinModal.classList.remove('show');
+        pinModalForm.removeEventListener('submit', onSubmit);
+        pinModalSkip.removeEventListener('click', onSkip);
+      }
+      function onSubmit(e){
+        e.preventDefault();
+        const val = pinModalInput.value.trim();
+        if(!val) return;
+        cleanup(); resolve(val);
+      }
+      function onSkip(){ cleanup(); resolve(null); }
+      pinModalForm.addEventListener('submit', onSubmit);
+      pinModalSkip.addEventListener('click', onSkip);
+    });
+  }
+
+  const confirmModal = document.getElementById('confirm-modal');
+  const confirmModalOk = document.getElementById('confirm-modal-ok');
+  const confirmModalCancel = document.getElementById('confirm-modal-cancel');
+
+  function askConfirm({ title, desc, okLabel }){
+    return new Promise(resolve => {
+      document.getElementById('confirm-modal-title').textContent = title;
+      document.getElementById('confirm-modal-desc').textContent = desc;
+      confirmModalOk.textContent = okLabel || 'Confirm';
+      confirmModal.classList.add('show');
+      function cleanup(){
+        confirmModal.classList.remove('show');
+        confirmModalOk.removeEventListener('click', onOk);
+        confirmModalCancel.removeEventListener('click', onCancel);
+      }
+      function onOk(){ cleanup(); resolve(true); }
+      function onCancel(){ cleanup(); resolve(false); }
+      confirmModalOk.addEventListener('click', onOk);
+      confirmModalCancel.addEventListener('click', onCancel);
+    });
+  }
+
+  // ---- Lightbox ----
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightbox-img');
+  document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+  lightbox.addEventListener('click', e => { if(e.target === lightbox) closeLightbox(); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') closeLightbox(); });
+  function openLightbox(url){ lightboxImg.src = url; lightbox.classList.add('show'); }
+  function closeLightbox(){ lightbox.classList.remove('show'); lightboxImg.src = ''; }
+
+  // ---- Database helpers ----
+  async function loadEntries(){
+    const { data, error } = await supabase
+      .from(TABLE).select('*').order('created_at', { ascending:false });
+    if(error){ console.error(error); showToast("Couldn't load the diary."); return []; }
+    return data;
+  }
+
+  async function insertEntry(entry){
+    const { error } = await supabase.from(TABLE).insert({
+      id: entry.id, text: entry.text, mood: entry.mood || null,
+      img_url: entry.img_url || null, img_path: entry.img_path || null,
+      created_at: entry.created_at, pin_hash: entry.pin_hash || null
+    });
+    if(error){ console.error(error); showToast("Couldn't save that page."); }
+  }
+
+  async function updateText(id, text){
+    const { error } = await supabase.from(TABLE).update({ text }).eq('id', id);
+    if(error){ console.error(error); showToast("Couldn't save your edit."); }
+  }
+
+  async function updatePinHash(id, pinHash){
+    const { error } = await supabase.from(TABLE).update({ pin_hash: pinHash }).eq('id', id);
+    if(error){ console.error(error); showToast("Couldn't update the lock."); return false; }
+    return true;
+  }
+
+  async function deleteEntry(entry){
+    if(entry.img_path) await supabase.storage.from(BUCKET).remove([entry.img_path]);
+    const { error } = await supabase.from(TABLE).delete().eq('id', entry.id);
+    if(error){ console.error(error); showToast("Couldn't tear out that page."); }
+  }
+
+  function scheduleTextSave(id, value){
+    clearTimeout(captionTimers[id]);
+    captionTimers[id] = setTimeout(()=> updateText(id, value), 600);
+  }
+
+  // ---- Lock overlay ----
+  function makeLockOverlay(entry, bodyEl){
+    const overlay = document.createElement('div');
+    overlay.className = 'lock-overlay';
+    overlay.innerHTML = '<div class="lock-icon">🔒</div><div class="lock-label">Locked page</div>';
+    const form = document.createElement('form');
+    const input = document.createElement('input');
+    input.type = 'password'; input.inputMode = 'numeric'; input.placeholder = 'PIN'; input.autocomplete = 'off';
+    const btn = document.createElement('button');
+    btn.type = 'submit'; btn.textContent = 'Unlock';
+    form.appendChild(input); form.appendChild(btn);
+    overlay.appendChild(form);
+    form.addEventListener('click', e => e.stopPropagation());
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const val = input.value.trim();
+      if(!val) return;
+      const hash = await sha256Hex(val);
+      if(hash === entry.pin_hash){
+        unlockedIds.add(entry.id);
+        bodyEl.classList.remove('blurred');
+        overlay.remove();
+        showToast('Unlocked.');
+      }else{
+        input.value = ''; input.placeholder = 'Wrong PIN'; showToast('Wrong PIN.');
+      }
+    });
+    return overlay;
+  }
+
+  // ---- Rendering ----
+  function makePage(entry){
+    const page = document.createElement('div');
+    page.className = 'page';
+    page.dataset.id = entry.id;
+
+    const top = document.createElement('div');
+    top.className = 'entry-top';
+    const date = document.createElement('span');
+    date.className = 'entry-date';
+    date.textContent = fmtDate(entry.created_at);
+    top.appendChild(date);
+    if(entry.mood){
+      const mood = document.createElement('span');
+      mood.className = 'entry-mood';
+      mood.textContent = entry.mood;
+      top.appendChild(mood);
+    }
+    page.appendChild(top);
+
+    const body = document.createElement('div');
+    body.className = 'entry-body';
+    body.style.position = 'relative';
+
+    if(entry.img_url){
+      const wrap = document.createElement('div');
+      wrap.className = 'entry-photo';
+      const tape = document.createElement('div'); tape.className = 'tape';
+      const img = document.createElement('img');
+      img.src = entry.img_url; img.alt = 'Diary photo';
+      img.addEventListener('click', ()=> openLightbox(entry.img_url));
+      wrap.appendChild(tape); wrap.appendChild(img);
+      body.appendChild(wrap);
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'entry-text';
+    textarea.placeholder = 'write here…';
+    textarea.value = entry.text || '';
+    textarea.rows = Math.max(2, Math.min(10, (entry.text || '').split('\n').length + 1));
+    textarea.addEventListener('input', ()=>{
+      entry.text = textarea.value;
+      scheduleTextSave(entry.id, textarea.value);
+    });
+    body.appendChild(textarea);
+    page.appendChild(body);
+
+    const isLocked = !!entry.pin_hash && !unlockedIds.has(entry.id);
+    if(isLocked){
+      body.classList.add('blurred');
+      page.appendChild(makeLockOverlay(entry, body));
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'entry-meta';
+    const left = document.createElement('div');
+    left.className = 'left';
+
+    const lockToggle = document.createElement('button');
+    lockToggle.type = 'button';
+    lockToggle.textContent = entry.pin_hash ? '🔒 change PIN' : '🔒 add PIN';
+    lockToggle.addEventListener('click', async ()=>{
+      if(entry.pin_hash && !unlockedIds.has(entry.id)){
+        showToast('Enter the PIN on this page first.');
+        return;
+      }
+      const val = await askForPin({
+        title: entry.pin_hash ? 'Change PIN' : 'Lock this page',
+        desc: entry.pin_hash ? 'Enter a new PIN, or skip to remove the lock.' : 'This page will stay blurred until the PIN is entered.',
+        okLabel: entry.pin_hash ? 'Save' : 'Lock it', mode: 'set'
+      });
+      const newHash = val ? await sha256Hex(val) : null;
+      const ok = await updatePinHash(entry.id, newHash);
+      if(!ok) return;
+      entry.pin_hash = newHash;
+      if(newHash){ unlockedIds.add(entry.id); showToast('Page locked.'); }
+      else{ showToast('Lock removed.'); }
+      page.replaceWith(makePage(entry));
+    });
+
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = 'tear out';
+    del.addEventListener('click', async ()=>{
+      const confirmed = await askConfirm({
+        title: 'Tear out this page?',
+        desc: "This removes it for everyone. This can't be undone.",
+        okLabel: 'Tear it out'
+      });
+      if(!confirmed) return;
+      entries = entries.filter(e => e.id !== entry.id);
+      page.remove();
+      updateCount();
+      toggleEmpty();
+      await deleteEntry(entry);
+    });
+
+    left.appendChild(lockToggle);
+    meta.appendChild(left);
+    meta.appendChild(del);
+    page.appendChild(meta);
+
+    return page;
+  }
+
+  function renderAll(){
+    entriesEl.innerHTML = '';
+    entries.forEach(entry => entriesEl.appendChild(makePage(entry)));
+    updateCount();
+    toggleEmpty();
+  }
+
+  function toggleEmpty(){
+    emptyEl.style.display = entries.length === 0 ? 'block' : 'none';
+  }
+
+  // ---- Composer interactions ----
+  moodRow.addEventListener('click', e => {
+    const btn = e.target.closest('.mood-btn');
+    if(!btn) return;
+    const already = btn.classList.contains('active');
+    moodRow.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+    if(!already){ btn.classList.add('active'); selectedMood = btn.dataset.mood; }
+    else{ selectedMood = null; }
+  });
+
+  attachBtn.addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', ()=>{
+    const file = fileInput.files[0];
+    if(!file || !file.type.startsWith('image/')) return;
+    selectedFile = file;
+    const reader = new FileReader();
+    reader.onload = () => {
+      attachPreviewImg.src = reader.result;
+      attachPreview.style.display = 'flex';
+      attachBtn.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  });
+  attachRemove.addEventListener('click', ()=>{
+    selectedFile = null;
+    fileInput.value = '';
+    attachPreview.style.display = 'none';
+    attachBtn.style.display = 'inline-block';
+  });
+
+  saveBtn.addEventListener('click', async ()=>{
+    const text = entryText.value.trim();
+    if(!text && !selectedFile){
+      showToast('Write something, or attach a photo, first.');
+      return;
+    }
+    saveBtn.disabled = true;
+    composerHint.textContent = 'saving…';
+
+    const id = 'd' + Date.now() + Math.random().toString(36).slice(2,8);
+    let img_url = null, img_path = null;
+
+    try{
+      if(selectedFile){
+        const blob = await compressImage(selectedFile);
+        const path = id + '.jpg';
+        const { error: uploadError } = await supabase.storage
+          .from(BUCKET).upload(path, blob, { contentType:'image/jpeg', upsert:false });
+        if(uploadError) throw uploadError;
+        const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+        img_url = pub.publicUrl; img_path = path;
+      }
+    }catch(err){
+      console.error(err);
+      showToast("Couldn't attach that photo.");
+      saveBtn.disabled = false; composerHint.textContent = '';
+      return;
+    }
+
+    const pin = await askForPin({
+      title: 'Lock this page?',
+      desc: 'Set a PIN and it stays blurred until the PIN is entered.',
+      okLabel: 'Lock it', mode: 'set'
+    });
+    const pin_hash = pin ? await sha256Hex(pin) : null;
+
+    const entry = {
+      id, text, mood: selectedMood, img_url, img_path,
+      created_at: new Date().toISOString(), pin_hash
+    };
+    if(pin_hash) unlockedIds.add(id);
+
+    await insertEntry(entry);
+    entries.unshift(entry);
+    entriesEl.insertBefore(makePage(entry), entriesEl.firstChild);
+    updateCount(); toggleEmpty();
+
+    entryText.value = '';
+    selectedMood = null;
+    moodRow.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+    selectedFile = null; fileInput.value = '';
+    attachPreview.style.display = 'none'; attachBtn.style.display = 'inline-block';
+    saveBtn.disabled = false; composerHint.textContent = 'saved ✓';
+    setTimeout(()=> composerHint.textContent = '', 1800);
+  });
+
+  // ---- Live updates ----
+  function subscribeRealtime(){
+    supabase
+      .channel('public:' + TABLE)
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:TABLE }, payload => {
+        const row = payload.new;
+        if(entries.some(e => e.id === row.id)) return;
+        entries.unshift(row);
+        entriesEl.insertBefore(makePage(row), entriesEl.firstChild);
+        updateCount(); toggleEmpty();
+      })
+      .on('postgres_changes', { event:'DELETE', schema:'public', table:TABLE }, payload => {
+        const id = payload.old.id;
+        entries = entries.filter(e => e.id !== id);
+        const page = entriesEl.querySelector('.page[data-id="' + id + '"]');
+        if(page) page.remove();
+        updateCount(); toggleEmpty();
+      })
+      .on('postgres_changes', { event:'UPDATE', schema:'public', table:TABLE }, payload => {
+        const row = payload.new;
+        const e = entries.find(e => e.id === row.id);
+        const page = entriesEl.querySelector('.page[data-id="' + row.id + '"]');
+        if(e) e.text = row.text;
+        if(page && document.activeElement !== page.querySelector('textarea.entry-text')){
+          const ta = page.querySelector('textarea.entry-text');
+          if(ta) ta.value = row.text || '';
+        }
+        if(e && e.pin_hash !== row.pin_hash){
+          e.pin_hash = row.pin_hash;
+          if(!row.pin_hash) unlockedIds.delete(row.id);
+          if(page) page.replaceWith(makePage(e));
+        }
+      })
+      .subscribe();
+  }
+
+  async function init(){
+    entries = await loadEntries();
+    renderAll();
+    loadingEl.style.display = 'none';
+    subscribeRealtime();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
