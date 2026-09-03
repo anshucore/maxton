@@ -653,11 +653,8 @@ body.unlocked .lock-screen {
 
 <script>
     // --- Password gate ---
-// The password is never stored as plain text here — only its SHA-256 hash.
-// Even if someone opens dev tools / view-source, they'll only see the hash below,
-// not the actual password.
 
-const CORRECT_HASH = "1a09807a0e6928a66d91025ed5fccd713c9edb101e72a1bbcb8a01cd9a53cb51";
+const CORRECT_HASH = "31d8edb99534fd4800651db4d241d86e0380fa7376718b88590c2d772b41d5f4";
 const SESSION_KEY = "site_unlocked";
 
 const input = document.getElementById("lockInput");
