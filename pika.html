@@ -190,6 +190,48 @@
   .cap-btn.cap-send{ background:var(--amber); color:#fff; }
   .cap-btn:active{ transform:scale(0.97); }
 
+  /* ---- In-page camera ---- */
+  .camera-modal{
+    position:fixed; inset:0; background:#000; z-index:55;
+    opacity:0; pointer-events:none; transition:opacity 0.2s ease;
+    display:flex; flex-direction:column;
+  }
+  .camera-modal.show{ opacity:1; pointer-events:auto; }
+  .camera-view{
+    flex:1; position:relative; overflow:hidden; min-height:0;
+    background:#000;
+  }
+  .camera-view video{
+    width:100%; height:100%; object-fit:cover; display:block;
+  }
+  .camera-msg{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    padding:30px; text-align:center; color:#fff;
+    font-family:'JetBrains Mono', monospace; font-size:13px; line-height:1.6;
+  }
+  .camera-bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 22px max(22px, env(safe-area-inset-bottom));
+  }
+  .camera-btn-round{
+    width:46px; height:46px; border-radius:50%; border:none; cursor:pointer;
+    background:rgba(255,255,255,0.16); color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:19px; padding:0;
+  }
+  .camera-btn-round:active{ transform:scale(0.92); }
+  .camera-shutter{
+    width:72px; height:72px; border-radius:50%;
+    border:3px solid #fff; background:transparent;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; padding:0;
+  }
+  .camera-shutter:active .camera-shutter-inner{ transform:scale(0.85); }
+  .camera-shutter-inner{
+    width:58px; height:58px; border-radius:50%; background:#fff;
+    transition:transform 0.15s ease;
+  }
+  .camera-side{ width:46px; }
+
   /* ---- Gallery ---- */
   .gallery-btn{
     position:fixed; top:max(18px, env(safe-area-inset-top)); right:16px;
@@ -270,7 +312,7 @@
   </div>
 </div>
 
-<input type="file" id="file-input" accept="image/*" capture="environment">
+<input type="file" id="file-input" accept="image/*">
 <div class="flash-overlay" id="flash"></div>
 <div class="toast" id="toast"></div>
 
@@ -284,6 +326,20 @@
     </div>
   </div>
 </div>
+
+<div class="camera-modal" id="cameraModal">
+  <div class="camera-view" id="cameraView">
+    <video id="cameraVideo" autoplay playsinline muted></video>
+  </div>
+  <div class="camera-bar">
+    <button class="camera-btn-round" id="cameraClose" aria-label="Close camera">✕</button>
+    <button class="camera-shutter" id="cameraShutter" aria-label="Capture photo">
+      <span class="camera-shutter-inner"></span>
+    </button>
+    <button class="camera-btn-round" id="cameraFlip" aria-label="Switch camera">⟲</button>
+  </div>
+</div>
+<canvas id="cameraCanvas" style="display:none;"></canvas>
 
 <button class="gallery-btn" id="galleryBtn" aria-label="View saved PIKA moments">
   <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -369,6 +425,13 @@
   const galleryModal = document.getElementById('galleryModal');
   const galleryClose = document.getElementById('galleryClose');
   const galleryGrid = document.getElementById('galleryGrid');
+  const cameraModal = document.getElementById('cameraModal');
+  const cameraVideo = document.getElementById('cameraVideo');
+  const cameraView = document.getElementById('cameraView');
+  const cameraClose = document.getElementById('cameraClose');
+  const cameraShutter = document.getElementById('cameraShutter');
+  const cameraFlip = document.getElementById('cameraFlip');
+  const cameraCanvas = document.getElementById('cameraCanvas');
 
   let queue = [];
   let savedList = [];
@@ -376,6 +439,8 @@
   let dragging = false;
   let consuming = false;
   let pendingBlob = null;
+  let cameraStream = null;
+  let cameraFacing = 'environment';
 
   function showToast(msg){
     toastEl.textContent = msg;
@@ -706,8 +771,117 @@
     });
   }
 
-  shutterBtn.addEventListener('click', () => fileInput.click());
+  // ---- In-page camera (avoids handing off to the native camera app,
+  // which is what was causing the "low memory" toast and the black
+  // screen when returning to the site: Android/Chrome would sometimes
+  // kill the tab's process to free RAM for the camera app, and the
+  // page never recovered cleanly). Capturing via getUserMedia keeps
+  // everything inside the page, so there's no app switch and nothing
+  // to lose. ----
 
+  function cameraSupported(){
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  }
+
+  async function openCamera(){
+    if(!cameraSupported()){
+      // Fallback for very old/unsupported browsers: plain gallery/file picker.
+      fileInput.click();
+      return;
+    }
+    cameraModal.classList.add('show');
+    cameraView.querySelector('.camera-msg')?.remove();
+    await startStream(cameraFacing);
+  }
+
+  async function startStream(facing){
+    stopStream();
+    try{
+      const constraints = {
+        audio:false,
+        video:{ facingMode:{ ideal:facing }, width:{ ideal:1280 }, height:{ ideal:1280 } }
+      };
+      cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+      cameraVideo.srcObject = cameraStream;
+      cameraFacing = facing;
+    }catch(err){
+      console.error(err);
+      // Permission denied, no camera, etc. — fall back to the OS picker
+      // instead of leaving the user stuck on a dead camera screen.
+      closeCamera();
+      showToast("Couldn't access the camera — pick a photo instead.");
+      fileInput.click();
+    }
+  }
+
+  function stopStream(){
+    if(cameraStream){
+      cameraStream.getTracks().forEach(t => t.stop());
+      cameraStream = null;
+    }
+    cameraVideo.srcObject = null;
+  }
+
+  function closeCamera(){
+    cameraModal.classList.remove('show');
+    stopStream();
+  }
+
+  function flipCamera(){
+    startStream(cameraFacing === 'environment' ? 'user' : 'environment');
+  }
+
+  function resizeCanvasBlob(canvas){
+    return new Promise(resolve => {
+      const maxW = 1000;
+      const scale = Math.min(1, maxW / canvas.width);
+      if(scale === 1){
+        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.82);
+        return;
+      }
+      const out = document.createElement('canvas');
+      out.width = Math.round(canvas.width * scale);
+      out.height = Math.round(canvas.height * scale);
+      out.getContext('2d').drawImage(canvas, 0, 0, out.width, out.height);
+      out.toBlob(blob => resolve(blob), 'image/jpeg', 0.82);
+    });
+  }
+
+  async function capturePhoto(){
+    if(!cameraStream) return;
+    const vw = cameraVideo.videoWidth, vh = cameraVideo.videoHeight;
+    if(!vw || !vh) return;
+    cameraCanvas.width = vw;
+    cameraCanvas.height = vh;
+    const ctx = cameraCanvas.getContext('2d');
+    if(cameraFacing === 'user'){
+      // Mirror the front camera so the preview matches what was shown.
+      ctx.translate(vw, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(cameraVideo, 0, 0, vw, vh);
+    try{
+      const blob = await resizeCanvasBlob(cameraCanvas);
+      closeCamera();
+      openCaptionModal(blob);
+    }catch(err){
+      console.error(err);
+      showToast("Couldn't process that photo.");
+    }
+  }
+
+  shutterBtn.addEventListener('click', openCamera);
+  cameraClose.addEventListener('click', closeCamera);
+  cameraShutter.addEventListener('click', capturePhoto);
+  cameraFlip.addEventListener('click', flipCamera);
+
+  // Release the camera if the tab is backgrounded while it's open, and
+  // don't leave a dead/frozen preview if the user comes back to it.
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden && cameraStream) closeCamera();
+  });
+
+  // Fallback file picker (used only if the in-page camera can't start).
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files[0];
     fileInput.value = '';
