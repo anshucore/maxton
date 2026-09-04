@@ -270,7 +270,7 @@
   </div>
 </div>
 
-<input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment">
+<input type="file" id="file-input" accept="image/*" capture="environment">
 <div class="flash-overlay" id="flash"></div>
 <div class="toast" id="toast"></div>
 
@@ -683,81 +683,26 @@
 
   // ---- Capture & send ----
   function compressImage(file){
-    return new Promise(async (resolve, reject) => {
-      // Avoid FileReader + base64: very large phone photos can consume
-      // hundreds of MB while being decoded. Keep the working canvas small.
-      const MAX_DIM = 1280;
-      const MAX_PIXELS = 1600000; // ~1.6 MP
-      let source = null;
-      let objectUrl = null;
-      let canvas = null;
-
-      try {
-        let width, height;
-
-        // Prefer createImageBitmap with resize options. On supported Android
-        // browsers this can avoid creating a huge full-resolution canvas.
-        if ('createImageBitmap' in window) {
-          source = await createImageBitmap(file, {
-            resizeWidth: MAX_DIM,
-            resizeHeight: MAX_DIM,
-            resizeQuality: 'medium'
-          });
-          width = source.width;
-          height = source.height;
-        } else {
-          // Fallback for older browsers: object URL uses much less JS memory
-          // than FileReader.readAsDataURL().
-          objectUrl = URL.createObjectURL(file);
-          const img = new Image();
-          await new Promise((res, rej) => {
-            img.onload = res;
-            img.onerror = rej;
-            img.src = objectUrl;
-          });
-          source = img;
-          width = img.naturalWidth;
-          height = img.naturalHeight;
-
-          const scale = Math.min(1, MAX_DIM / width, MAX_DIM / height);
-          width = Math.max(1, Math.round(width * scale));
-          height = Math.max(1, Math.round(height * scale));
-        }
-
-        // Final pixel cap, regardless of source/browser behaviour.
-        const pixelScale = Math.min(1, Math.sqrt(MAX_PIXELS / (width * height)));
-        const w = Math.max(1, Math.round(width * pixelScale));
-        const h = Math.max(1, Math.round(height * pixelScale));
-
-        canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-
-        const ctx = canvas.getContext('2d', { alpha: false });
-        if (!ctx) throw new Error('Canvas is not available');
-
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'medium';
-        ctx.drawImage(source, 0, 0, w, h);
-
-        canvas.toBlob(blob => {
-          if (!blob) {
-            reject(new Error('Could not create compressed image'));
-            return;
-          }
-          resolve(blob);
-        }, 'image/jpeg', 0.76);
-      } catch (err) {
-        reject(err);
-      } finally {
-        if (source && typeof source.close === 'function') source.close();
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
-        // Release the canvas backing store as soon as possible.
-        if (canvas) {
-          canvas.width = 1;
-          canvas.height = 1;
-        }
-      }
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const maxW = 1000;
+          const scale = Math.min(1, maxW / img.width);
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.82);
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
     });
   }
 
