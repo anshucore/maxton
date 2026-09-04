@@ -291,6 +291,55 @@
   .gallery-empty{ text-align:center; padding:110px 30px; color:var(--muted); }
   .gallery-empty .big{ font-family:'Space Grotesk', sans-serif; font-size:18px; color:var(--flash); margin-bottom:8px; font-weight:600; }
   .gallery-empty .small{ font-family:'JetBrains Mono', monospace; font-size:12px; line-height:1.6; }
+
+  /* ---- Photo viewer (fullscreen) ---- */
+  .viewer-modal{
+    position:fixed; inset:0; background:rgba(20,10,14,0.94); z-index:70;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+    opacity:0; pointer-events:none; transition:opacity 0.2s ease;
+  }
+  .viewer-modal.show{ opacity:1; pointer-events:auto; }
+  .viewer-close{
+    position:absolute; top:max(18px, env(safe-area-inset-top)); right:18px;
+    width:36px; height:36px; border-radius:50%; border:none; background:rgba(255,255,255,0.14);
+    color:#fff; font-size:16px; cursor:pointer; z-index:2;
+  }
+  .viewer-close:active{ transform:scale(0.92); }
+  .viewer-photo{
+    max-width:100%; max-height:78vh; border-radius:12px; object-fit:contain;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .viewer-caption{
+    font-family:'Inter', sans-serif; font-size:14px; line-height:1.5; color:#fff;
+    text-align:center; padding:16px 10px 0; max-width:520px;
+  }
+  .viewer-stamp{
+    font-family:'JetBrains Mono', monospace; font-size:11px; color:rgba(255,255,255,0.55);
+    text-align:center; padding-top:8px;
+  }
+
+  /* ---- Confirm dialog ---- */
+  .confirm-modal{
+    position:fixed; inset:0; background:rgba(255,211,225,0.82); backdrop-filter:blur(5px);
+    display:flex; align-items:center; justify-content:center; padding:20px; z-index:80;
+    opacity:0; pointer-events:none; transition:opacity 0.2s ease;
+  }
+  .confirm-modal.show{ opacity:1; pointer-events:auto; }
+  .confirm-sheet{
+    width:min(86vw, 320px); background:#ffffff; border-radius:20px; padding:22px 18px 16px;
+    box-shadow:0 24px 60px rgba(184,104,132,0.28); text-align:center;
+    transform:translateY(8px); transition:transform 0.2s ease;
+  }
+  .confirm-modal.show .confirm-sheet{ transform:translateY(0); }
+  .confirm-title{
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:16px; color:var(--flash);
+    margin-bottom:6px;
+  }
+  .confirm-text{
+    font-family:'Inter', sans-serif; font-size:13px; color:var(--muted); line-height:1.5;
+  }
+  .confirm-actions{ display:flex; gap:10px; padding-top:16px; }
 </style>
 </head>
 <body>
@@ -357,6 +406,24 @@
     <button class="gallery-close" id="galleryClose" aria-label="Close gallery">✕</button>
   </div>
   <div class="gallery-grid" id="galleryGrid"></div>
+</div>
+
+<div class="viewer-modal" id="viewerModal">
+  <button class="viewer-close" id="viewerClose" aria-label="Close photo">✕</button>
+  <img class="viewer-photo" id="viewerPhoto" alt="Saved PIKA photo">
+  <div class="viewer-caption" id="viewerCaption"></div>
+  <div class="viewer-stamp" id="viewerStamp"></div>
+</div>
+
+<div class="confirm-modal" id="confirmModal">
+  <div class="confirm-sheet">
+    <div class="confirm-title">Delete this photo?</div>
+    <div class="confirm-text">This can't be undone — it'll be removed from PIKA for everyone.</div>
+    <div class="confirm-actions">
+      <button class="cap-btn cap-cancel" id="confirmCancel">Cancel</button>
+      <button class="cap-btn cap-send" id="confirmDelete" style="background:var(--skip);">Delete</button>
+    </div>
+  </div>
 </div>
 
 <!-- Supabase client library -->
@@ -432,6 +499,14 @@
   const cameraShutter = document.getElementById('cameraShutter');
   const cameraFlip = document.getElementById('cameraFlip');
   const cameraCanvas = document.getElementById('cameraCanvas');
+  const viewerModal = document.getElementById('viewerModal');
+  const viewerPhoto = document.getElementById('viewerPhoto');
+  const viewerCaption = document.getElementById('viewerCaption');
+  const viewerStamp = document.getElementById('viewerStamp');
+  const viewerClose = document.getElementById('viewerClose');
+  const confirmModal = document.getElementById('confirmModal');
+  const confirmCancel = document.getElementById('confirmCancel');
+  const confirmDelete = document.getElementById('confirmDelete');
 
   let queue = [];
   let savedList = [];
@@ -441,6 +516,7 @@
   let pendingBlob = null;
   let cameraStream = null;
   let cameraFacing = 'environment';
+  let pendingDelete = null;
 
   function showToast(msg){
     toastEl.textContent = msg;
@@ -609,6 +685,7 @@
       img.src = entry.img_url;
       img.alt = 'Saved PIKA photo';
       img.draggable = false;
+      attachDoubleTap(img, () => openViewer(entry));
       photo.appendChild(img);
       item.appendChild(photo);
 
@@ -628,7 +705,7 @@
       del.className = 'gallery-del';
       del.setAttribute('aria-label', 'Delete this photo');
       del.textContent = '✕';
-      del.addEventListener('click', () => deleteSaved(entry));
+      del.addEventListener('click', () => askDelete(entry));
       item.appendChild(del);
 
       galleryGrid.appendChild(item);
@@ -642,6 +719,55 @@
     await removeFromDb(entry);
     showToast('Deleted');
   }
+
+  // ---- Delete confirmation ----
+  function askDelete(entry){
+    pendingDelete = entry;
+    confirmModal.classList.add('show');
+  }
+
+  function closeConfirm(){
+    confirmModal.classList.remove('show');
+    pendingDelete = null;
+  }
+
+  confirmCancel.addEventListener('click', closeConfirm);
+  confirmDelete.addEventListener('click', () => {
+    const entry = pendingDelete;
+    closeConfirm();
+    if(entry){
+      closeViewer();
+      deleteSaved(entry);
+    }
+  });
+
+  // ---- Fullscreen photo viewer (double-click / double-tap) ----
+  function attachDoubleTap(el, handler){
+    let lastTap = 0;
+    el.addEventListener('click', () => {
+      const now = Date.now();
+      if(now - lastTap < 320) handler();
+      lastTap = now;
+    });
+  }
+
+  function openViewer(entry){
+    viewerPhoto.src = entry.img_url;
+    viewerCaption.textContent = entry.caption || '';
+    viewerCaption.style.display = entry.caption ? '' : 'none';
+    viewerStamp.textContent = fmtTime(entry.created_at);
+    viewerModal.classList.add('show');
+  }
+
+  function closeViewer(){
+    viewerModal.classList.remove('show');
+    viewerPhoto.removeAttribute('src');
+  }
+
+  viewerClose.addEventListener('click', closeViewer);
+  viewerModal.addEventListener('click', (e) => {
+    if(e.target === viewerModal) closeViewer();
+  });
 
   async function refreshSaved(){
     savedList = await loadSaved();
