@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Instants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --bg:#16110d;
+    --bg-glow: radial-gradient(60% 50% at 50% 0%, rgba(227,168,87,0.16), rgba(22,17,13,0) 70%);
+    --surface:#221b15;
+    --surface-raised:#2c231b;
+    --paper:#efe6d6;
+    --paper-dim:#dcd0ba;
+    --ink:#f3ece0;
+    --ink-dim:#b8aa97;
+    --ink-faint:#7d7264;
+    --amber:#e3a857;
+    --amber-dim:#8a6a3c;
+    --sage:#7fa189;
+    --sage-deep:#5c7d68;
+    --rust:#b8503d;
+    --rust-deep:#8f3b2c;
+    --line: rgba(243,236,224,0.1);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg-glow), var(--bg);
+    color:var(--ink);
+    font-family:'Space Grotesk', sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  ::selection{ background:var(--amber); color:#16110d; }
+
+  /* subtle film grain overlay */
+  .grain{
+    position:fixed; inset:0; pointer-events:none; z-index:50;
+    opacity:0.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  a{color:inherit;}
+  button{ font-family:inherit; cursor:pointer; border:none; background:none; color:inherit; }
+
+  .app{ max-width:520px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; padding:0 20px; }
+
+  header.topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 2px 16px;
+  }
+  .brand{ display:flex; align-items:baseline; gap:8px; }
+  .brand .mark{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--amber);
+    box-shadow:0 0 10px 2px rgba(227,168,87,0.6);
+  }
+  .brand h1{
+    font-family:'Fraunces', serif; font-weight:500; font-style:italic;
+    font-size:22px; margin:0; letter-spacing:0.2px;
+  }
+  nav.tabs{ display:flex; gap:4px; background:var(--surface); padding:4px; border-radius:100px; border:1px solid var(--line); }
+  nav.tabs button{
+    font-size:13px; padding:7px 14px; border-radius:100px; color:var(--ink-dim);
+    transition:background .25s ease, color .25s ease;
+  }
+  nav.tabs button.active{ background:var(--surface-raised); color:var(--ink); }
+
+  main{ flex:1; display:flex; flex-direction:column; position:relative; }
+  .view{ display:none; flex:1; flex-direction:column; }
+  .view.active{ display:flex; }
+
+  /* ---------- SHARE VIEW ---------- */
+  .share-hero{ padding:8px 2px 22px; }
+  .share-hero p{
+    margin:0; color:var(--ink-dim); font-size:14.5px; line-height:1.55; max-width:34ch;
+  }
+
+  .frame-shell{
+    margin:0 auto; width:100%; max-width:360px;
+    background:var(--paper); border-radius:3px 3px 2px 2px;
+    padding:14px 14px 26px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.55), 0 2px 0 rgba(0,0,0,0.15);
+    transform:rotate(-1.2deg);
+  }
+  .photo-slot{
+    position:relative; width:100%; aspect-ratio:1/1;
+    background:#0f0c09;
+    border-radius:1px; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .photo-slot img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .photo-slot .prompt{
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    color:var(--ink-faint); text-align:center; padding:20px;
+  }
+  .photo-slot .prompt svg{ width:30px; height:30px; opacity:0.8; }
+  .photo-slot .prompt span{ font-size:13px; color:var(--ink-dim); }
+  .photo-slot input[type=file]{
+    position:absolute; inset:0; opacity:0; cursor:pointer;
+  }
+  .caption-line{
+    margin-top:16px; padding:0 4px;
+  }
+  .caption-line input{
+    width:100%; border:none; background:transparent; outline:none;
+    font-family:'Fraunces', serif; font-size:16px; font-style:italic;
+    color:#2b241a; border-bottom:1px solid rgba(43,36,26,0.25);
+    padding:4px 2px 8px;
+  }
+  .caption-line input::placeholder{ color:rgba(43,36,26,0.4); font-style:italic; }
+
+  .share-actions{ margin-top:26px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .develop-btn{
+    display:flex; align-items:center; gap:10px;
+    background:var(--amber); color:#221405; font-weight:600; font-size:14.5px;
+    padding:13px 26px; border-radius:100px;
+    transition:transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+    box-shadow:0 10px 24px -10px rgba(227,168,87,0.5);
+  }
+  .develop-btn:hover{ transform:translateY(-1px); }
+  .develop-btn:disabled{ opacity:0.5; cursor:default; transform:none; }
+  .develop-btn .dot{ width:7px;height:7px;border-radius:50%; background:#221405; }
+  .share-status{ font-size:12.5px; color:var(--ink-dim); min-height:16px; text-align:center; }
+  .share-status.err{ color:var(--rust); }
+  .share-status.ok{ color:var(--sage); }
+
+  /* ---------- FEED VIEW ---------- */
+  .feed-head{ padding:6px 2px 4px; display:flex; align-items:center; justify-content:space-between; }
+  .feed-head .hint{ font-size:12.5px; color:var(--ink-faint); }
+  .feed-head .hint b{ color:var(--sage); font-weight:600; }
+  .feed-head .hint .sep{ color:var(--ink-faint); margin:0 6px; }
+  .feed-head .hint .skip{ color:var(--rust); font-weight:600; }
+  .frame-counter{
+    font-size:12.5px; color:var(--ink-faint); font-variant-numeric:tabular-nums;
+  }
+
+  .stage{
+    position:relative; flex:1; min-height:420px;
+    display:flex; align-items:center; justify-content:center;
+    padding:18px 0 10px;
+  }
+
+  .card{
+    position:absolute; width:100%; max-width:340px; touch-action:none;
+    background:var(--paper); border-radius:3px 3px 2px 2px;
+    padding:12px 12px 22px;
+    box-shadow:0 24px 50px -18px rgba(0,0,0,0.6);
+    will-change:transform;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  .card .photo-wrap{
+    width:100%; aspect-ratio:1/1; background:#0f0c09; overflow:hidden; position:relative;
+  }
+  .card .photo-wrap img{ width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
+  .card .strip{ padding-top:14px; display:flex; align-items:flex-end; justify-content:space-between; gap:10px; }
+  .card .cap{ font-family:'Fraunces', serif; font-style:italic; font-size:15px; color:#2b241a; line-height:1.35; }
+  .card .meta{ font-size:10.5px; color:rgba(43,36,26,0.5); white-space:nowrap; font-variant-numeric:tabular-nums; }
+
+  .stamp{
+    position:absolute; top:22px; padding:6px 14px; border:2.5px solid; border-radius:5px;
+    font-size:13px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase;
+    opacity:0; transform:rotate(-8deg); pointer-events:none;
+  }
+  .stamp-keep{ left:20px; color:var(--sage); border-color:var(--sage); }
+  .stamp-skip{ right:20px; color:var(--rust); border-color:var(--rust); transform:rotate(8deg); }
+
+  .empty-state, .loading-state{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; text-align:center; color:var(--ink-dim); padding:40px 20px;
+  }
+  .empty-state h3{ font-family:'Fraunces', serif; font-weight:500; font-style:italic; font-size:20px; color:var(--ink); margin:0; }
+  .empty-state p{ margin:0; font-size:13.5px; max-width:30ch; line-height:1.5; }
+  .empty-state button{
+    margin-top:6px; font-size:13px; padding:10px 20px; border-radius:100px;
+    border:1px solid var(--line); color:var(--ink);
+  }
+
+  .feed-controls{
+    display:flex; align-items:center; justify-content:center; gap:22px;
+    padding:8px 0 26px;
+  }
+  .ctrl-btn{
+    width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:var(--surface); border:1px solid var(--line);
+    transition:transform .15s ease, border-color .15s ease;
+  }
+  .ctrl-btn:active{ transform:scale(0.92); }
+  .ctrl-btn svg{ width:22px; height:22px; }
+  .ctrl-skip{ color:var(--rust); }
+  .ctrl-skip:hover{ border-color:var(--rust-deep); }
+  .ctrl-keep{ color:var(--sage); }
+  .ctrl-keep:hover{ border-color:var(--sage-deep); }
+
+  .toast{
+    position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px);
+    background:var(--surface-raised); border:1px solid var(--line); color:var(--ink);
+    padding:11px 18px; border-radius:100px; font-size:13px;
+    opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease;
+    z-index:60; display:flex; align-items:center; gap:8px;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast .dot{ width:6px;height:6px;border-radius:50%; }
+  .toast.ok .dot{ background:var(--sage); }
+  .toast.err .dot{ background:var(--rust); }
+
+  @media (max-width:380px){
+    .frame-shell, .card{ max-width:100%; }
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand"><span class="mark"></span><h1>Instants</h1></div>
+    <nav class="tabs">
+      <button id="tabShare" class="active">Share</button>
+      <button id="tabFeed">Feed</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- SHARE VIEW -->
+    <section id="viewShare" class="view active">
+      <div class="share-hero">
+        <p>Develop a photo and send it out. Whoever's browsing the feed can keep it or let it pass.</p>
+      </div>
+
+      <div class="frame-shell">
+        <label class="photo-slot" id="photoSlot">
+          <div class="prompt" id="photoPrompt">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="6" width="18" height="14" rx="1.5"/><circle cx="12" cy="13" r="3.4"/><path d="M8 6l1.2-2.2h5.6L16 6"/></svg>
+            <span>Tap to choose a photo</span>
+          </div>
+          <img id="photoPreview" style="display:none;">
+          <input type="file" id="fileInput" accept="image/*" capture="environment">
+        </label>
+        <div class="caption-line">
+          <input type="text" id="captionInput" placeholder="Write something on the border…" maxlength="140">
+        </div>
+      </div>
+
+      <div class="share-actions">
+        <button class="develop-btn" id="developBtn" disabled>
+          <span class="dot"></span>
+          <span id="developBtnLabel">Develop &amp; send</span>
+        </button>
+        <div class="share-status" id="shareStatus"></div>
+      </div>
+    </section>
+
+    <!-- FEED VIEW -->
+    <section id="viewFeed" class="view">
+      <div class="feed-head">
+        <div class="hint"><b>← swipe left</b> to keep<span class="sep">·</span><span class="skip">swipe right →</span> to skip</div>
+        <div class="frame-counter" id="frameCounter"></div>
+      </div>
+      <div class="stage" id="stage"></div>
+      <div class="feed-controls" id="feedControls" style="display:none;">
+        <button class="ctrl-btn ctrl-skip" id="btnSkip" title="Skip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <button class="ctrl-btn ctrl-keep" id="btnKeep" title="Keep &amp; save">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0l-4.5-4.5M12 16l4.5-4.5M4 19h16"/></svg>
+        </button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastMsg"></span></div>
+
+<script>
+(function(){
+  const SUPABASE_URL = 'https://qpeoldazjmctxaefdwni.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_dm8NgOu_Wt1f7ussG76qkw_ODaRW-1h';
+  const BUCKET = 'pika';
+  const TABLE = 'pikapika';
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---------- shared helpers ----------
+  const toastEl = document.getElementById('toast');
+  const toastMsg = document.getElementById('toastMsg');
+  let toastTimer;
+  function showToast(msg, kind){
+    toastEl.className = 'toast show ' + (kind || '');
+    toastMsg.textContent = msg;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> toastEl.classList.remove('show'), 2600);
+  }
+
+  function timeAgo(iso){
+    if(!iso) return '';
+    const d = new Date(iso);
+    const s = Math.max(1, Math.floor((Date.now() - d.getTime())/1000));
+    if(s < 60) return s + 's ago';
+    const m = Math.floor(s/60); if(m < 60) return m + 'm ago';
+    const h = Math.floor(m/60); if(h < 24) return h + 'h ago';
+    const days = Math.floor(h/24); return days + 'd ago';
+  }
+
+  // ---------- tabs ----------
+  const tabShare = document.getElementById('tabShare');
+  const tabFeed = document.getElementById('tabFeed');
+  const viewShare = document.getElementById('viewShare');
+  const viewFeed = document.getElementById('viewFeed');
+
+  function setTab(name){
+    const share = name === 'share';
+    tabShare.classList.toggle('active', share);
+    tabFeed.classList.toggle('active', !share);
+    viewShare.classList.toggle('active', share);
+    viewFeed.classList.toggle('active', !share);
+    if(!share) loadFeed();
+  }
+  tabShare.addEventListener('click', ()=> setTab('share'));
+  tabFeed.addEventListener('click', ()=> setTab('feed'));
+
+  // ---------- share view ----------
+  const fileInput = document.getElementById('fileInput');
+  const photoPreview = document.getElementById('photoPreview');
+  const photoPrompt = document.getElementById('photoPrompt');
+  const captionInput = document.getElementById('captionInput');
+  const developBtn = document.getElementById('developBtn');
+  const developBtnLabel = document.getElementById('developBtnLabel');
+  const shareStatus = document.getElementById('shareStatus');
+
+  let selectedFile = null;
+
+  fileInput.addEventListener('change', (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    selectedFile = file;
+    const url = URL.createObjectURL(file);
+    photoPreview.src = url;
+    photoPreview.style.display = 'block';
+    photoPrompt.style.display = 'none';
+    developBtn.disabled = false;
+    shareStatus.textContent = '';
+    shareStatus.className = 'share-status';
+  });
+
+  developBtn.addEventListener('click', async ()=>{
+    if(!selectedFile) return;
+    developBtn.disabled = true;
+    developBtnLabel.textContent = 'Developing…';
+    shareStatus.textContent = '';
+    shareStatus.className = 'share-status';
+    try{
+      const ext = (selectedFile.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
+      const path = Date.now() + '-' + Math.random().toString(36).slice(2,8) + '.' + ext;
+
+      const { error: upErr } = await sb.storage.from(BUCKET).upload(path, selectedFile, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: selectedFile.type || 'image/jpeg'
+      });
+      if(upErr) throw upErr;
+
+      const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(path);
+      const image_url = pub.publicUrl;
+
+      const { error: insErr } = await sb.from(TABLE).insert({
+        image_url: image_url,
+        caption: captionInput.value.trim() || null
+      });
+      if(insErr) throw insErr;
+
+      shareStatus.textContent = 'Sent to the feed.';
+      shareStatus.className = 'share-status ok';
+      showToast('Photo developed and sent', 'ok');
+
+      // reset form
+      selectedFile = null;
+      fileInput.value = '';
+      photoPreview.style.display = 'none';
+      photoPrompt.style.display = 'flex';
+      captionInput.value = '';
+      feedCache = null; // invalidate feed cache so it refetches
+    }catch(err){
+      console.error(err);
+      shareStatus.textContent = (err && err.message) ? err.message : 'Something went wrong sending that.';
+      shareStatus.className = 'share-status err';
+      showToast('Could not send photo', 'err');
+    }finally{
+      developBtn.disabled = !selectedFile ? true : false;
+      developBtn.disabled = false;
+      developBtnLabel.textContent = 'Develop & send';
+      if(!selectedFile){ developBtn.disabled = true; }
+    }
+  });
+
+  // ---------- feed view ----------
+  const stage = document.getElementById('stage');
+  const frameCounter = document.getElementById('frameCounter');
+  const feedControls = document.getElementById('feedControls');
+  const btnSkip = document.getElementById('btnSkip');
+  const btnKeep = document.getElementById('btnKeep');
+
+  let feedCache = null; // array of rows
+  let cursor = 0;
+  let loadingFeed = false;
+
+  async function fetchInstants(){
+    let data, error;
+    // try ordering by created_at, fall back gracefully if the column differs
+    ({ data, error } = await sb.from(TABLE).select('*').order('created_at', { ascending:false }));
+    if(error){
+      ({ data, error } = await sb.from(TABLE).select('*'));
+      if(error) throw error;
+      data = (data || []).slice().reverse();
+    }
+    return data || [];
+  }
+
+  async function loadFeed(force){
+    if(loadingFeed) return;
+    if(feedCache && !force) { renderStage(); return; }
+    loadingFeed = true;
+    stage.innerHTML = '<div class="loading-state"><p>Loading instants…</p></div>';
+    feedControls.style.display = 'none';
+    frameCounter.textContent = '';
+    try{
+      const rows = await fetchInstants();
+      feedCache = rows;
+      cursor = 0;
+      renderStage();
+    }catch(err){
+      console.error(err);
+      stage.innerHTML = '<div class="empty-state"><h3>Couldn\'t load the feed</h3><p>' + ((err && err.message) || 'Check the connection and try again.') + '</p></div>';
+    }finally{
+      loadingFeed = false;
+    }
+  }
+
+  function remaining(){ return (feedCache || []).slice(cursor, cursor + 3); }
+
+  function renderStage(){
+    stage.innerHTML = '';
+    const rows = remaining();
+    const total = feedCache ? feedCache.length : 0;
+
+    if(!feedCache || total === 0){
+      feedControls.style.display = 'none';
+      frameCounter.textContent = '';
+      stage.innerHTML = '<div class="empty-state"><h3>No instants yet</h3><p>Be the first to develop one and send it out.</p><button id="goShare">Share a photo</button></div>';
+      const goShare = document.getElementById('goShare');
+      if(goShare) goShare.addEventListener('click', ()=> setTab('share'));
+      return;
+    }
+
+    if(cursor >= total){
+      feedControls.style.display = 'none';
+      frameCounter.textContent = '';
+      stage.innerHTML = '<div class="empty-state"><h3>That\'s everything</h3><p>You\'ve been through all ' + total + ' instants.</p><button id="reshuffle">Start over</button></div>';
+      const rs = document.getElementById('reshuffle');
+      if(rs) rs.addEventListener('click', ()=>{ cursor = 0; renderStage(); });
+      return;
+    }
+
+    feedControls.style.display = 'flex';
+    frameCounter.textContent = 'No. ' + String(total - cursor).padStart(3,'0') + ' of ' + total;
+
+    // render back-to-front so the first row ends up on top
+    rows.slice().reverse().forEach((row, i)=>{
+      const depthFromTop = rows.length - 1 - i; // 0 = top card
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.zIndex = 10 - depthFromTop;
+      const scale = 1 - depthFromTop * 0.045;
+      const ty = depthFromTop * 12;
+      const rot = depthFromTop === 0 ? 0 : (depthFromTop % 2 === 0 ? -3 : 3);
+      card.style.transform = 'translateY(' + ty + 'px) scale(' + scale + ') rotate(' + rot + 'deg)';
+      card.dataset.baseTransform = card.style.transform;
+
+      card.innerHTML =
+        '<div class="stamp stamp-keep">Keep</div>' +
+        '<div class="stamp stamp-skip">Skip</div>' +
+        '<div class="photo-wrap"><img src="' + (row.image_url || '') + '" draggable="false"></div>' +
+        '<div class="strip">' +
+          '<div class="cap">' + escapeHtml(row.caption || ' ') + '</div>' +
+          '<div class="meta">' + timeAgo(row.created_at) + '</div>' +
+        '</div>';
+
+      stage.appendChild(card);
+      if(depthFromTop === 0){
+        makeDraggable(card, row);
+      }
+    });
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, (c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function makeDraggable(card, row){
+    let startX = 0, startY = 0, dx = 0, dy = 0, dragging = false;
+    const keepStamp = card.querySelector('.stamp-keep');
+    const skipStamp = card.querySelector('.stamp-skip');
+    const THRESHOLD = 110;
+
+    function onDown(x, y){
+      dragging = true;
+      startX = x; startY = y;
+      card.style.transition = 'none';
+    }
+    function onMove(x, y){
+      if(!dragging) return;
+      dx = x - startX; dy = y - startY;
+      const rot = dx / 18;
+      card.style.transform = 'translate(' + dx + 'px,' + (dy*0.4) + 'px) rotate(' + rot + 'deg)';
+      const p = Math.min(1, Math.abs(dx) / THRESHOLD);
+      if(dx < 0){ keepStamp.style.opacity = p; skipStamp.style.opacity = 0; }
+      else if(dx > 0){ skipStamp.style.opacity = p; keepStamp.style.opacity = 0; }
+      else { keepStamp.style.opacity = 0; skipStamp.style.opacity = 0; }
+    }
+    function onUp(){
+      if(!dragging) return;
+      dragging = false;
+      card.style.transition = 'transform .35s cubic-bezier(.2,.7,.3,1), opacity .35s ease';
+      if(dx <= -THRESHOLD){
+        resolveCard('keep', row, card);
+      }else if(dx >= THRESHOLD){
+        resolveCard('skip', row, card);
+      }else{
+        card.style.transform = card.dataset.baseTransform;
+        keepStamp.style.opacity = 0;
+        skipStamp.style.opacity = 0;
+      }
+      dx = 0; dy = 0;
+    }
+
+    card.addEventListener('pointerdown', (e)=>{ card.setPointerCapture(e.pointerId); onDown(e.clientX, e.clientY); });
+    card.addEventListener('pointermove', (e)=> onMove(e.clientX, e.clientY));
+    card.addEventListener('pointerup', onUp);
+    card.addEventListener('pointercancel', onUp);
+
+    card._resolveKeep = ()=> resolveCard('keep', row, card);
+    card._resolveSkip = ()=> resolveCard('skip', row, card);
+    stage._activeCard = card;
+  }
+
+  function resolveCard(action, row, card){
+    card.style.transition = 'transform .4s cubic-bezier(.2,.7,.3,1), opacity .4s ease';
+    const flyX = action === 'keep' ? -520 : 520;
+    const rot = action === 'keep' ? -18 : 18;
+    card.style.transform = 'translate(' + flyX + 'px,-30px) rotate(' + rot + 'deg)';
+    card.style.opacity = '0';
+
+    if(action === 'keep'){
+      saveToDevice(row.image_url, row.caption);
+      showToast('Saved to your device', 'ok');
+    }else{
+      showToast('Skipped', '');
+    }
+
+    setTimeout(()=>{
+      cursor += 1;
+      renderStage();
+    }, 260);
+  }
+
+  btnKeep.addEventListener('click', ()=>{
+    const card = stage._activeCard;
+    if(card && card._resolveKeep) card._resolveKeep();
+  });
+  btnSkip.addEventListener('click', ()=>{
+    const card = stage._activeCard;
+    if(card && card._resolveSkip) card._resolveSkip();
+  });
+
+  async function saveToDevice(url, caption){
+    if(!url) return;
+    const filename = 'instant-' + Date.now() + '.jpg';
+    try{
+      const resp = await fetch(url, { mode: 'cors' });
+      if(!resp.ok) throw new Error('download failed');
+      const blob = await resp.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=> URL.revokeObjectURL(objUrl), 4000);
+    }catch(err){
+      console.warn('Direct download failed, opening in new tab instead', err);
+      window.open(url, '_blank');
+    }
+  }
+
+  // keyboard support
+  document.addEventListener('keydown', (e)=>{
+    if(!viewFeed.classList.contains('active')) return;
+    if(e.key === 'ArrowLeft') btnKeep.click();
+    if(e.key === 'ArrowRight') btnSkip.click();
+  });
+
+})();
+</script>
+</body>
+</html>
