@@ -371,10 +371,10 @@
       if(upErr) throw upErr;
 
       const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(path);
-      const image_url = pub.publicUrl;
+      const img_url = pub.publicUrl;
 
       const { error: insErr } = await sb.from(TABLE).insert({
-        image_url: image_url,
+        img_url: img_url,
         caption: captionInput.value.trim() || null
       });
       if(insErr) throw insErr;
@@ -561,7 +561,7 @@
     card.style.opacity = '0';
 
     if(action === 'keep'){
-      saveToDevice(row.image_url, row.caption);
+      saveToDevice(row.img_url, row.caption);
       showToast('Saved to your device', 'ok');
     }else{
       showToast('Skipped', '');
