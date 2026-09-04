@@ -147,12 +147,10 @@
   .toast{
     position:fixed; bottom:max(96px, calc(96px + env(safe-area-inset-bottom)));
     left:50%; transform:translateX(-50%) translateY(10px);
-    background:#361d1d; color:var(--void); padding:10px 18px; border-radius:20px;
+    background:#ffffff; color:var(--void); padding:10px 18px; border-radius:20px;
     font-family:'JetBrains Mono', monospace; font-size:12.5px;
     opacity:0; pointer-events:none; transition:all 0.25s ease; z-index:45;
     max-width:80vw; text-align:center;
-    
-
   }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 
@@ -179,7 +177,7 @@
   .caption-sheet textarea{
     width:100%; min-height:64px; resize:none; border-radius:6px;
     border:1px solid rgba(0,0,0,0.15); padding:10px; font-family:'Inter', sans-serif;
-    font-size:14px; color:black; background:#fff8fa; outline:none;
+    font-size:14px; color:var(--void); background:#fff8fa; outline:none;
   }
   .caption-sheet textarea:focus{ border-color:var(--amber); }
   .caption-actions{ display:flex; gap:10px; padding-top:12px; }
@@ -191,6 +189,66 @@
   .cap-btn.cap-cancel{ background:#fff5f8; color:var(--flash); border:1px solid rgba(95,69,80,0.15); }
   .cap-btn.cap-send{ background:var(--amber); color:#fff; }
   .cap-btn:active{ transform:scale(0.97); }
+
+  /* ---- Gallery ---- */
+  .gallery-btn{
+    position:fixed; top:max(18px, env(safe-area-inset-top)); right:16px;
+    width:40px; height:40px; border-radius:12px; background:#fff; border:none;
+    box-shadow:0 6px 18px rgba(184,104,132,0.22); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; z-index:30; padding:0;
+  }
+  .gallery-btn:active{ transform:scale(0.94); }
+  .gallery-btn svg{ width:18px; height:18px; display:block; }
+  .gallery-count{
+    position:absolute; top:-5px; right:-5px; min-width:16px; height:16px; padding:0 3px;
+    border-radius:8px; background:var(--pink-dark); color:#fff;
+    font-family:'JetBrains Mono', monospace; font-size:9.5px; line-height:16px; text-align:center;
+    display:none;
+  }
+  .gallery-count.show{ display:block; }
+
+  .gallery-modal{
+    position:fixed; inset:0; background:var(--void); z-index:60;
+    transform:translateY(100%); transition:transform 0.28s cubic-bezier(.2,.8,.3,1);
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  .gallery-modal.show{ transform:translateY(0); }
+  .gallery-header{
+    position:sticky; top:0; background:var(--void);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:max(18px, env(safe-area-inset-top)) 18px 12px; max-width:520px; margin:0 auto;
+  }
+  .gallery-title{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:19px; color:var(--pink-dark); }
+  .gallery-close{
+    background:#fff; border:none; width:34px; height:34px; border-radius:50%; font-size:16px;
+    color:var(--flash); cursor:pointer; box-shadow:0 4px 12px rgba(184,104,132,0.18);
+  }
+  .gallery-close:active{ transform:scale(0.92); }
+  .gallery-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:14px;
+    padding:4px 16px max(30px, env(safe-area-inset-bottom)); max-width:520px; margin:0 auto;
+  }
+  .gallery-item{ position:relative; background:#fff; border-radius:14px; padding:8px 8px 26px; box-shadow:0 8px 24px rgba(184,104,132,0.14); }
+  .gallery-item .photo{ width:100%; aspect-ratio:4/5; border-radius:8px; overflow:hidden; background:#ffe4ec; }
+  .gallery-item .photo img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .gallery-item .caption{
+    font-family:'Inter', sans-serif; font-size:11.5px; line-height:1.4; color:#684f5b;
+    padding:6px 2px 0; word-wrap:break-word;
+  }
+  .gallery-item .stamp{
+    position:absolute; left:12px; bottom:8px; font-family:'JetBrains Mono', monospace;
+    font-size:9.5px; color:#a98795;
+  }
+  .gallery-del{
+    position:absolute; top:-8px; right:-8px; width:26px; height:26px; border-radius:50%;
+    background:var(--skip); color:#fff; border:2px solid #fff; font-size:13px; line-height:1;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    box-shadow:0 4px 10px rgba(0,0,0,0.18); padding:0;
+  }
+  .gallery-del:active{ transform:scale(0.9); }
+  .gallery-empty{ text-align:center; padding:110px 30px; color:var(--muted); }
+  .gallery-empty .big{ font-family:'Space Grotesk', sans-serif; font-size:18px; color:var(--flash); margin-bottom:8px; font-weight:600; }
+  .gallery-empty .small{ font-family:'JetBrains Mono', monospace; font-size:12px; line-height:1.6; }
 </style>
 </head>
 <body>
@@ -227,6 +285,24 @@
   </div>
 </div>
 
+<button class="gallery-btn" id="galleryBtn" aria-label="View saved PIKA moments">
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="3" y="3" width="7" height="7" rx="1.6" stroke="#3a2c33" stroke-width="1.8"/>
+    <rect x="14" y="3" width="7" height="7" rx="1.6" stroke="#3a2c33" stroke-width="1.8"/>
+    <rect x="3" y="14" width="7" height="7" rx="1.6" stroke="#3a2c33" stroke-width="1.8"/>
+    <rect x="14" y="14" width="7" height="7" rx="1.6" fill="#3a2c33"/>
+  </svg>
+  <span class="gallery-count" id="galleryCount">0</span>
+</button>
+
+<div class="gallery-modal" id="galleryModal">
+  <div class="gallery-header">
+    <div class="gallery-title">Saved moments</div>
+    <button class="gallery-close" id="galleryClose" aria-label="Close gallery">✕</button>
+  </div>
+  <div class="gallery-grid" id="galleryGrid"></div>
+</div>
+
 <!-- Supabase client library -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -238,26 +314,41 @@
   //
   // Run this once in the Supabase SQL editor before using this page:
   //
-  //   create table pikapika (
+  //   create table pika_instants (
   //     id text primary key,
   //     img_url text not null,
   //     img_path text not null,
   //     caption text,
+  //     is_saved boolean not null default false,
   //     created_at timestamptz not null default now()
   //   );
-  //   alter table pikapika enable row level security;
-  //   create policy "public read" on pikapika for select using (true);
-  //   create policy "public insert" on pikapika for insert with check (true);
-  //   create policy "public delete" on pikapika for delete using (true);
-  // //
+  //   alter table pika_instants enable row level security;
+  //   create policy "public read" on pika_instants for select using (true);
+  //   create policy "public insert" on pika_instants for insert with check (true);
+  //   create policy "public update" on pika_instants for update using (true) with check (true);
+  //   create policy "public delete" on pika_instants for delete using (true);
+  //
   //   Then in Storage, create a public bucket named "pika".
   // Finally, in Database > Replication, turn on realtime for
-  // the "pikapika" table (insert + delete).
+  // the "pika_instants" table (insert + update + delete).
+  //
+  //   IF YOU ALREADY RAN THE ORIGINAL VERSION OF THIS SQL (table already
+  //   exists), just run this migration instead — it's safe to run once:
+  //
+  //   alter table pika_instants add column if not exists is_saved boolean not null default false;
+  //   create policy "public update" on pika_instants for update using (true) with check (true);
+  //
+  //   Then turn on realtime UPDATE events for pika_instants in
+  //   Database > Replication (insert + delete are likely on already).
+  //
+  //   No new storage bucket is needed — saved photos stay in the same
+  //   "pika" bucket, they just get flagged is_saved = true instead of
+  //   being deleted.
   // ============================================================
   const SUPABASE_URL = 'https://qpeoldazjmctxaefdwni.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_dm8NgOu_Wt1f7ussG76qkw_ODaRW-1h';
   const BUCKET = 'pika';
-  const TABLE = 'pikapika';
+  const TABLE = 'pika_instants';
   // ============================================================
 
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -273,8 +364,15 @@
   const captionInput = document.getElementById('captionInput');
   const captionCancel = document.getElementById('captionCancel');
   const captionSend = document.getElementById('captionSend');
+  const galleryBtn = document.getElementById('galleryBtn');
+  const galleryCount = document.getElementById('galleryCount');
+  const galleryModal = document.getElementById('galleryModal');
+  const galleryClose = document.getElementById('galleryClose');
+  const galleryGrid = document.getElementById('galleryGrid');
 
   let queue = [];
+  let savedList = [];
+  let galleryOpen = false;
   let dragging = false;
   let consuming = false;
   let pendingBlob = null;
@@ -300,9 +398,23 @@
   // ---- Database helpers ----
   async function loadQueue(){
     const { data, error } = await supabase
-      .from(TABLE).select('*').order('created_at', { ascending: true });
+      .from(TABLE).select('*').eq('is_saved', false).order('created_at', { ascending: true });
     if(error){ console.error(error); showToast("Couldn't load instants."); return []; }
     return data || [];
+  }
+
+  async function loadSaved(){
+    const { data, error } = await supabase
+      .from(TABLE).select('*').eq('is_saved', true).order('created_at', { ascending: false });
+    if(error){ console.error(error); showToast("Couldn't load saved moments."); return []; }
+    return data || [];
+  }
+
+  async function markSaved(entry){
+    try{
+      const { error } = await supabase.from(TABLE).update({ is_saved: true }).eq('id', entry.id);
+      if(error) console.error(error);
+    }catch(err){ console.error(err); }
   }
 
   async function removeFromDb(entry){
@@ -341,7 +453,7 @@
     if(queue.length === 0){
       const msg = document.createElement('div');
       msg.className = 'state-msg';
-      msg.innerHTML = '<div class="big">No PIKA moments yet</div><div class="small">Neeche tap karo aur PIKA moment bhejoo ...</div>';
+      msg.innerHTML = '<div class="big">No PIKA moments yet</div><div class="small">Tap the pink shutter below to send<br>the first PIKA moment.</div>';
       deckEl.appendChild(msg);
       updateCounter();
       return;
@@ -405,6 +517,88 @@
     return card;
   }
 
+  // ---- Gallery ----
+  function updateGalleryCount(){
+    if(savedList.length > 0){
+      galleryCount.textContent = String(savedList.length);
+      galleryCount.classList.add('show');
+    } else {
+      galleryCount.classList.remove('show');
+    }
+  }
+
+  function renderGallery(){
+    galleryGrid.innerHTML = '';
+    if(savedList.length === 0){
+      galleryGrid.innerHTML = '<div class="gallery-empty"><div class="big">No saved moments yet</div><div class="small">Swipe left on an instant<br>to save it here.</div></div>';
+      return;
+    }
+    savedList.forEach(entry => {
+      const item = document.createElement('div');
+      item.className = 'gallery-item';
+      item.dataset.id = entry.id;
+
+      const photo = document.createElement('div');
+      photo.className = 'photo';
+      const img = document.createElement('img');
+      img.src = entry.img_url;
+      img.alt = 'Saved PIKA photo';
+      img.draggable = false;
+      photo.appendChild(img);
+      item.appendChild(photo);
+
+      if(entry.caption){
+        const cap = document.createElement('div');
+        cap.className = 'caption';
+        cap.textContent = entry.caption;
+        item.appendChild(cap);
+      }
+
+      const stamp = document.createElement('div');
+      stamp.className = 'stamp';
+      stamp.textContent = fmtTime(entry.created_at);
+      item.appendChild(stamp);
+
+      const del = document.createElement('button');
+      del.className = 'gallery-del';
+      del.setAttribute('aria-label', 'Delete this photo');
+      del.textContent = '✕';
+      del.addEventListener('click', () => deleteSaved(entry));
+      item.appendChild(del);
+
+      galleryGrid.appendChild(item);
+    });
+  }
+
+  async function deleteSaved(entry){
+    savedList = savedList.filter(e => e.id !== entry.id);
+    renderGallery();
+    updateGalleryCount();
+    await removeFromDb(entry);
+    showToast('Deleted');
+  }
+
+  async function refreshSaved(){
+    savedList = await loadSaved();
+    updateGalleryCount();
+    if(galleryOpen) renderGallery();
+  }
+
+  function openGallery(){
+    galleryOpen = true;
+    galleryModal.classList.add('show');
+    renderGallery();
+    refreshSaved();
+  }
+
+  function closeGallery(){
+    galleryOpen = false;
+    galleryModal.classList.remove('show');
+  }
+
+  galleryBtn.addEventListener('click', openGallery);
+  galleryClose.addEventListener('click', closeGallery);
+
   // ---- Drag / swipe ----
   function attachDrag(card){
     let startX = 0, startY = 0, dx = 0, dy = 0;
@@ -458,7 +652,7 @@
     };
   }
 
-  function finishSwipe(card, dir, wantsDownload){
+  function finishSwipe(card, dir, wantsSave){
     if(consuming) return;
     consuming = true;
     card.style.transform = `translate(${dir * 700}px, -30px) rotate(${dir * 45}deg)`;
@@ -468,11 +662,17 @@
     updateCounter();
 
     (async () => {
-      if(wantsDownload && entry){
-        await downloadImage(entry.img_url, 'pika-' + entry.id + '.jpg');
-        showToast('Saved to your device');
+      if(!entry) return;
+      if(wantsSave){
+        entry.is_saved = true;
+        if(!savedList.some(e => e.id === entry.id)) savedList.unshift(entry);
+        updateGalleryCount();
+        if(galleryOpen) renderGallery();
+        await markSaved(entry);
+        showToast('Saved to your PIKA gallery');
+      } else {
+        await removeFromDb(entry);
       }
-      if(entry) await removeFromDb(entry);
     })();
 
     setTimeout(() => {
@@ -589,15 +789,43 @@
       .channel('public:' + TABLE)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: TABLE }, payload => {
         const row = payload.new;
+        if(row.is_saved){
+          if(!savedList.some(e => e.id === row.id)){
+            savedList.unshift(row);
+            updateGalleryCount();
+            if(galleryOpen) renderGallery();
+          }
+          return;
+        }
         if(queue.some(e => e.id === row.id)) return;
         queue.push(row);
         if(!dragging && !consuming) render();
         else updateCounter();
       })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: TABLE }, payload => {
+        const row = payload.new;
+        if(row.is_saved){
+          const wasFront = queue[0] && queue[0].id === row.id;
+          queue = queue.filter(e => e.id !== row.id);
+          if(!savedList.some(e => e.id === row.id)){
+            savedList.unshift(row);
+            updateGalleryCount();
+            if(galleryOpen) renderGallery();
+          }
+          if(!dragging && !consuming && wasFront) render();
+          else updateCounter();
+        }
+      })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: TABLE }, payload => {
         const id = payload.old.id;
         const wasFront = queue[0] && queue[0].id === id;
         queue = queue.filter(e => e.id !== id);
+        const wasSaved = savedList.some(e => e.id === id);
+        if(wasSaved){
+          savedList = savedList.filter(e => e.id !== id);
+          updateGalleryCount();
+          if(galleryOpen) renderGallery();
+        }
         if(!dragging && !consuming && wasFront) render();
         else updateCounter();
       })
@@ -609,6 +837,7 @@
     queue = await loadQueue();
     render();
     subscribeRealtime();
+    refreshSaved();
   }
 
   init();
