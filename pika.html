@@ -203,6 +203,10 @@
   }
   .camera-view video{
     width:100%; height:100%; object-fit:cover; display:block;
+    filter:none; transform:none;
+  }
+  .camera-view video.facing-user{
+    transform:scaleX(-1);
   }
   .camera-msg{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
@@ -923,13 +927,22 @@
   async function startStream(facing){
     stopStream();
     try{
+      // Avoid forcing an unusual square (1:1) resolution — some devices'
+      // camera pipelines mis-handle non-native aspect ratios and hand back
+      // a badly color-converted (inverted/blueish) frame. Ask for a normal
+      // aspect instead; the preview already crops to the card shape via
+      // object-fit: cover.
       const constraints = {
         audio:false,
-        video:{ facingMode:{ ideal:facing }, width:{ ideal:1280 }, height:{ ideal:1280 } }
+        video:{ facingMode:{ ideal:facing }, width:{ ideal:1280 }, height:{ ideal:960 } }
       };
       cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
       cameraVideo.srcObject = cameraStream;
       cameraFacing = facing;
+      // Mirror the front camera preview like a normal selfie/mirror view.
+      // The actual saved photo is un-mirrored in capturePhoto() so text
+      // and objects read correctly for anyone who sees it later.
+      cameraVideo.classList.toggle('facing-user', facing === 'user');
     }catch(err){
       console.error(err);
       // Permission denied, no camera, etc. — fall back to the OS picker
