@@ -843,11 +843,16 @@
     // keyboard fallback for desktop
     document.onkeydown = (e) => {
       if(consuming || queue.length === 0) return;
+      const tag = (e.target && e.target.tagName) || '';
+      if(tag === 'TEXTAREA' || tag === 'INPUT') return;
+      if(captionModal.classList.contains('show') ||
+         galleryOpen ||
+         lightbox.classList.contains('show') ||
+         confirmModal.classList.contains('show')) return;
       if(e.key === 'ArrowLeft') finishSwipe(card, -1, true);
       if(e.key === 'ArrowRight') finishSwipe(card, 1, false);
     };
   }
-
   function finishSwipe(card, dir, wantsSave){
     if(consuming) return;
     consuming = true;
