@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Photo Album</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;1,500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --blush:#fff1f6; --petal:#fbd0e0; --rose:#e8628f; --berry:#b8336a; --plum:#4a1a33; --paper:#fffafc;
+  --display:'Fraunces',Georgia,serif; --body:'DM Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+body{
+  font-family:var(--body); color:var(--plum); line-height:1.6;
+  background:
+    radial-gradient(circle at 12% 8%, var(--petal) 0, transparent 38%),
+    radial-gradient(circle at 90% 30%, #ffdbe8 0, transparent 35%),
+    var(--blush);
+  background-attachment:fixed; min-height:100vh;
+}
+header{text-align:center; padding:72px 20px 36px}
+h1{font-family:var(--display); font-weight:600; font-size:clamp(2.6rem,8vw,5rem); line-height:1.05; color:var(--berry); letter-spacing:-.02em}
+header p{margin:14px auto 28px; max-width:44ch; font-size:1.05rem}
+.btn{
+  font:500 1rem var(--body); cursor:pointer; border:0; border-radius:999px;
+  padding:12px 28px; background:var(--rose); color:#fff; transition:background .2s, transform .15s;
+}
+.btn:hover{background:var(--berry)} .btn:active{transform:scale(.97)}
+:focus-visible{outline:3px solid var(--berry); outline-offset:3px}
+.count{margin-top:14px; font-size:.9rem; color:var(--berry)}
+
+main{max-width:1100px; margin:0 auto; padding:24px 20px 80px}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:40px 28px}
+.card{
+  position:relative; background:var(--paper); padding:12px 12px 16px; border:0; text-align:left; cursor:pointer;
+  box-shadow:0 10px 24px rgba(184,51,106,.18); border-radius:4px; font:inherit; color:inherit;
+  transform:rotate(var(--tilt,0deg)); transition:transform .25s, box-shadow .25s;
+}
+.card:nth-child(4n+1){--tilt:-2.2deg} .card:nth-child(4n+2){--tilt:1.6deg}
+.card:nth-child(4n+3){--tilt:-1deg} .card:nth-child(4n){--tilt:2.4deg}
+.card:hover{transform:rotate(0) translateY(-6px) scale(1.03); box-shadow:0 18px 34px rgba(184,51,106,.28); z-index:2}
+.card::before{ /* washi tape */
+  content:""; position:absolute; top:-12px; left:50%; width:84px; height:24px; margin-left:-42px;
+  background:repeating-linear-gradient(45deg,rgba(232,98,143,.55) 0 6px,rgba(251,208,224,.7) 6px 12px);
+  transform:rotate(-3deg); border-radius:2px;
+}
+.card .img{aspect-ratio:1/1; width:100%; border-radius:2px; overflow:hidden; display:grid; place-items:center; background:var(--petal)}
+.card img{width:100%; height:100%; object-fit:cover; display:block}
+.card .cap{display:block; margin-top:12px; font-family:var(--display); font-style:italic; font-size:1.05rem; text-align:center; color:var(--berry)}
+.ph svg{width:46%; opacity:.9}
+
+.lightbox{position:fixed; inset:0; background:rgba(74,26,51,.88); display:none; align-items:center; justify-content:center; flex-direction:column; padding:24px; z-index:10}
+.lightbox.open{display:flex}
+.lightbox figure{max-width:min(92vw,820px); text-align:center; background:var(--paper); padding:14px 14px 18px; border-radius:4px}
+.lightbox .big{width:min(80vw,720px); max-height:70vh; aspect-ratio:1/1; display:grid; place-items:center; background:var(--petal); overflow:hidden}
+.lightbox img{width:100%; height:100%; object-fit:contain}
+.lightbox figcaption{margin-top:12px; font-family:var(--display); font-style:italic; font-size:1.25rem; color:var(--berry)}
+.nav{position:absolute; top:50%; transform:translateY(-50%); width:48px; height:48px; border-radius:50%; border:0; background:var(--petal); color:var(--berry); font-size:1.5rem; cursor:pointer}
+.nav:hover{background:#fff}
+.prev{left:16px} .next{right:16px}
+.close{position:absolute; top:16px; right:16px; width:44px; height:44px; border-radius:50%; border:0; background:var(--petal); color:var(--berry); font-size:1.4rem; cursor:pointer}
+footer{text-align:center; padding:0 20px 48px; font-size:.9rem; color:var(--berry)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Our Album</h1>
+  <p>Little moments, kept in pink. Tap any photo to see it bigger.</p>
+  <button class="btn" id="addBtn">Add photos</button>
+  <input type="file" id="file" accept="image/*" multiple hidden>
+  <div class="count" id="count"></div>
+</header>
+
+<main><div class="grid" id="grid"></div></main>
+<footer>To use your own pictures, press “Add photos” or list them in the <code>photos</code> array in this file.</footer>
+
+<div class="lightbox" id="lb" role="dialog" aria-modal="true" aria-label="Photo viewer">
+  <button class="close" id="close" aria-label="Close">×</button>
+  <button class="nav prev" id="prev" aria-label="Previous photo">‹</button>
+  <figure><div class="big" id="big"></div><figcaption id="lbCap"></figcaption></figure>
+  <button class="nav next" id="next" aria-label="Next photo">›</button>
+</div>
+
+<script>
+/* Put your own photos here: { src: "images/pic1.jpg", caption: "Beach day" } */
+const photos = [
+  { src: "images/1 (1).jpeg", caption: "Memory 1" },
+  { src: "images/1 (1).jpg", caption: "Memory 2" },
+  { src: "images/1 (2).jpeg", caption: "Memory 3" },
+  { src: "images/1 (2).jpg", caption: "Memory 4" },
+  { src: "images/1 (3).jpeg", caption: "Memory 5" },
+  { src: "images/1 (3).jpg", caption: "Memory 6" },
+  { src: "images/1 (4).jpeg", caption: "Memory 7" },
+  { src: "images/1 (4).jpg", caption: "Memory 8" },
+  { src: "images/1 (5).jpeg", caption: "Memory 9" },
+  { src: "images/1 (5).jpg", caption: "Memory 10" },
+  { src: "images/1 (6).jpeg", caption: "Memory 11" },
+  { src: "images/1 (6).jpg", caption: "Memory 12" },
+  { src: "images/1 (7).jpeg", caption: "Memory 13" },
+  { src: "images/1 (7).jpg", caption: "Memory 14" },
+  { src: "images/1 (8).jpeg", caption: "Memory 15" },
+  { src: "images/1 (8).jpg", caption: "Memory 16" },
+  { src: "images/1 (9).jpeg", caption: "Memory 17" },
+  { src: "images/1 (9).jpg", caption: "Memory 18" },
+  { src: "images/1 (10).jpeg", caption: "Memory 19" },
+  { src: "images/1 (10).jpg", caption: "Memory 20" },
+  { src: "images/1 (11).jpeg", caption: "Memory 21" },
+  { src: "images/1 (11).jpg", caption: "Memory 22" },
+  { src: "images/1 (12).jpeg", caption: "Memory 23" },
+  { src: "images/1 (12).jpg", caption: "Memory 24" },
+  { src: "images/1 (13).jpg", caption: "Memory 25" },
+  { src: "images/1 (14).jpg", caption: "Memory 26" },
+  { src: "images/1 (15).jpg", caption: "Memory 27" },
+  { src: "images/1 (16).jpg", caption: "Memory 28" },
+  { src: "images/1 (17).jpg", caption: "Memory 29" },
+  { src: "images/1 (18).jpg", caption: "Memory 30" },
+  { src: "images/1 (19).jpg", caption: "Memory 31" },
+  { src: "images/1 (20).jpg", caption: "Memory 32" },
+  { src: "images/1 (21).jpg", caption: "Memory 33" },
+  { src: "images/1 (22).jpg", caption: "Memory 34" },
+  { src: "images/1 (23).jpg", caption: "Memory 35" },
+  { src: "images/1 (24).jpg", caption: "Memory 36" },
+  { src: "images/1 (25).jpg", caption: "Memory 37" },
+  { src: "images/1 (26).jpg", caption: "Memory 38" },
+  { src: "images/1 (27).jpg", caption: "Memory 39" },
+  { src: "images/1 (28).jpg", caption: "Memory 40" },
+  { src: "images/1 (29).jpg", caption: "Memory 41" },
+  { src: "images/1 (30).jpg", caption: "Memory 42" },
+  { src: "images/1 (31).jpg", caption: "Memory 43" },
+  { src: "images/1 (32).jpg", caption: "Memory 44" },
+  { src: "images/1 (33).jpg", caption: "Memory 45" },
+  { src: "images/1 (34).jpg", caption: "Memory 46" },
+  { src: "images/1 (35).jpg", caption: "Memory 47" },
+  { src: "images/1 (36).jpg", caption: "Memory 48" },
+  { src: "images/1 (37).jpg", caption: "Memory 49" },
+  { src: "images/1 (38).jpg", caption: "Memory 50" },
+  { src: "images/1 (39).jpg", caption: "Memory 51" },
+  { src: "images/1 (40).jpg", caption: "Memory 52" },
+  { src: "images/1 (41).jpg", caption: "Memory 53" },
+  { src: "images/1 (42).jpg", caption: "Memory 54" },
+  { src: "images/1 (43).jpg", caption: "Memory 55" },
+  { src: "images/1 (44).jpg", caption: "Memory 56" }
+];
+
+const sampleCaptions = ["Sunday picnic","Golden hour","Best friends","Cherry blossoms","Birthday cake","Road trip","Rainy window","Sweet memories"];
+const sampleColors = [["#f9a8c6","#ffe0ec"],["#ff8fb3","#ffd1e1"],["#f4b6d2","#fff0f6"],["#e87aa5","#fbd0e0"],
+                      ["#ffb3cf","#ffe8f1"],["#f08ab0","#fcd5e4"],["#f7a1c2","#fff1f6"],["#e8628f","#fbc4d8"]];
+const heart = '<svg viewBox="0 0 24 24" fill="#fff"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.3 3 4.5 6.6 4.5c2 0 3.6 1.1 5.4 3.2 1.8-2.1 3.4-3.2 5.4-3.2 3.6 0 5.7 3.8 4.2 7.2C19.5 16.4 12 21 12 21z"/></svg>';
+
+let items = photos.length ? [...photos] : sampleCaptions.map((c,i)=>({caption:c, ph:sampleColors[i]}));
+let current = 0;
+const grid = document.getElementById('grid');
+
+function thumb(it, big){
+  if(it.src) return `<img src="${it.src}" alt="${it.caption||'Photo'}">`;
+  return `<div class="ph" style="width:100%;height:100%;display:grid;place-items:center;background:linear-gradient(135deg,${it.ph[0]},${it.ph[1]})">${heart}</div>`;
+}
+function render(){
+  grid.innerHTML = '';
+  items.forEach((it,i)=>{
+    const b = document.createElement('button');
+    b.className = 'card';
+    b.setAttribute('aria-label', 'Open ' + (it.caption||'photo '+(i+1)));
+    b.innerHTML = `<span class="img">${thumb(it)}</span><span class="cap">${it.caption||''}</span>`;
+    b.onclick = () => openAt(i);
+    grid.appendChild(b);
+  });
+  document.getElementById('count').textContent = items.length + (items.length===1?' photo':' photos');
+}
+const lb = document.getElementById('lb');
+function openAt(i){
+  current = (i + items.length) % items.length;
+  const it = items[current];
+  document.getElementById('big').innerHTML = thumb(it, true);
+  document.getElementById('lbCap').textContent = it.caption || '';
+  lb.classList.add('open');
+  document.getElementById('close').focus();
+}
+const closeLb = () => lb.classList.remove('open');
+document.getElementById('close').onclick = closeLb;
+document.getElementById('prev').onclick = () => openAt(current-1);
+document.getElementById('next').onclick = () => openAt(current+1);
+lb.addEventListener('click', e => { if(e.target === lb) closeLb(); });
+document.addEventListener('keydown', e => {
+  if(!lb.classList.contains('open')) return;
+  if(e.key==='Escape') closeLb();
+  if(e.key==='ArrowLeft') openAt(current-1);
+  if(e.key==='ArrowRight') openAt(current+1);
+});
+
+const fileInput = document.getElementById('file');
+document.getElementById('addBtn').onclick = () => fileInput.click();
+fileInput.onchange = () => {
+  const added = [...fileInput.files].map(f => ({
+    src: URL.createObjectURL(f),
+    caption: f.name.replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ')
+  }));
+  if(!photos.length && items.every(i=>i.ph)) items = [];  // replace samples on first upload
+  items = items.concat(added);
+  render();
+};
+render();
+</script>
+</body>
+</html>
